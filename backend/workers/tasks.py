@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import logging
 
+import anthropic
 from sqlalchemy import select
 
 from agents.draft import draft_reply
@@ -15,6 +16,22 @@ logger = logging.getLogger(__name__)
 
 SCORE_THRESHOLD = 7.0
 VOICE_PROFILE_VERSION = "v1"
+
+
+async def _draft_with_retry(post, max_retries=3, base_delay=2) -> str:
+    for attempt in range(max_retries + 1):
+        try:
+            return draft_reply(post)
+        except anthropic.APIStatusError as exc:
+            if exc.status_code == 529 and attempt < max_retries:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(
+                    "Anthropic overloaded (529) drafting for @%s, retrying in %ds (attempt %d/%d)",
+                    post.author_handle, delay, attempt + 1, max_retries,
+                )
+                await asyncio.sleep(delay)
+            else:
+                raise
 
 
 def _tweet_id(handle: str, text: str) -> str:
@@ -80,7 +97,14 @@ async def _pipeline() -> dict:
             if already_drafted:
                 continue
 
-            draft_text = draft_reply(post)
+            try:
+                draft_text = await _draft_with_retry(post)
+            except Exception as exc:
+                logger.error(
+                    "Failed to draft reply for @%s after retries, skipping: %s",
+                    post.author_handle, exc,
+                )
+                continue
             session.add(Draft(
                 post_id=post.id,
                 draft_text=draft_text,

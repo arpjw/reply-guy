@@ -1,8 +1,12 @@
 import anthropic
 import base64
 import json
+import logging
+import time
 from pathlib import Path
 from core.config import settings
+
+logger = logging.getLogger(__name__)
 
 client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
@@ -10,9 +14,24 @@ def encode_image(path: str) -> str:
     with open(path, "rb") as f:
         return base64.standard_b64encode(f.read()).decode("utf-8")
 
+def _call_with_retry(fn, max_retries=3, base_delay=2):
+    for attempt in range(max_retries + 1):
+        try:
+            return fn()
+        except anthropic.APIStatusError as exc:
+            if exc.status_code == 529 and attempt < max_retries:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(
+                    "Anthropic overloaded (529), retrying in %ds (attempt %d/%d)",
+                    delay, attempt + 1, max_retries,
+                )
+                time.sleep(delay)
+            else:
+                raise
+
 def extract_post(screenshot_path: str) -> dict:
     b64 = encode_image(screenshot_path)
-    response = client.messages.create(
+    response = _call_with_retry(lambda: client.messages.create(
         model="claude-opus-4-5",
         max_tokens=1024,
         messages=[
@@ -49,7 +68,7 @@ If the post is an ad set is_ad to true. Return only valid JSON, no markdown."""
                 ],
             }
         ],
-    )
+    ))
     raw = response.content[0].text.strip()
     raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     return json.loads(raw)
@@ -100,7 +119,11 @@ def run_score(posts: list[dict]) -> list[dict]:
         if not path or not Path(path).exists():
             continue
         print(f"Extracting post {post['index']}...")
-        extracted = extract_post(path)
+        try:
+            extracted = extract_post(path)
+        except Exception as exc:
+            logger.error("Failed to extract post %s after retries: %s", post.get("index"), exc)
+            continue
         extracted["screenshot_path"] = path
         extracted["index"] = post["index"]
         extracted["score"] = score_post(extracted)
