@@ -48,26 +48,54 @@ function Spinner({ className = 'h-3.5 w-3.5' }: { className?: string }) {
   )
 }
 
-function ScoreBadge({ score }: { score: number }) {
-  const green = score >= 9
-  const yellow = score >= 7 && score < 9
+const TICKER_ITEMS = [
+  'TECH CEO FIRES OFF GALAXY-BRAIN TAKE — RATIO INCOMING',
+  'INFLUENCER POSTS CONTROVERSIAL OPINION AT 2AM',
+  'VC EXPLAINS WHY EVERYTHING YOU KNOW IS WRONG',
+  'FOUNDER DISCOVERS HUSTLE — SHARE PRICE UNCHANGED',
+  'ANONYMOUS SOURCE CONFIRMS WHAT EVERYONE SUSPECTED',
+  'TIMELINE DIVIDED OVER SPICY TAKE — EXPERTS WEIGH IN',
+]
+
+const TICKER_TEXT = [...TICKER_ITEMS, ...TICKER_ITEMS].join('  ★  ')
+
+const IMPACT = "Impact, 'Arial Black', sans-serif"
+const GEORGIA = 'Georgia, serif'
+
+function getPill(score: number, rank: number): { label: string; bg: string; color: string } {
+  if (rank === 0) return { label: '🔥 Top Story', bg: '#DC143C', color: '#fff' }
+  if (score >= 8) return { label: '📰 Developing', bg: '#B8600A', color: '#fff' }
+  return { label: '👀 Watch This', bg: '#1A56A0', color: '#fff' }
+}
+
+function HeatBadge({ score }: { score: number }) {
+  const hot = score >= 9
   return (
-    <span className={[
-      'shrink-0 font-mono text-[11px] px-2 py-0.5 rounded border tracking-wide',
-      green  ? 'text-green-400  border-green-700  bg-green-950/50'  : '',
-      yellow ? 'text-yellow-400 border-yellow-700 bg-yellow-950/50' : '',
-      !green && !yellow ? 'text-white/30 border-white/10' : '',
-    ].join(' ')}>
-      {score % 1 === 0 ? score : score.toFixed(1)}
-    </span>
+    <div style={{
+      background: hot ? '#DC143C' : '#111',
+      color: '#FFD700',
+      fontFamily: IMPACT,
+      padding: '4px 10px',
+      minWidth: '60px',
+      textAlign: 'center',
+      lineHeight: 1.2,
+      flexShrink: 0,
+    }}>
+      <div style={{ fontSize: '20px' }}>{score % 1 === 0 ? score : score.toFixed(1)}</div>
+      <div style={{ fontSize: '10px', letterSpacing: '0.05em' }}>🔥 HEAT</div>
+    </div>
   )
 }
 
 function PostCard({
   card,
+  rank,
+  index,
   onAction,
 }: {
   card: Card
+  rank: number
+  index: number
   onAction: (draftId: number, action: 'approve' | 'edit-approve' | 'skip', text: string) => Promise<void>
 }) {
   const alreadyDone = card.draft.status !== 'pending'
@@ -75,69 +103,215 @@ function PostCard({
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(alreadyDone)
   const [doneLabel, setDoneLabel] = useState<string>(() => {
-    if (card.draft.status === 'approved' || card.draft.status === 'sent') return 'APPROVED'
-    if (card.draft.status === 'rejected') return 'SKIPPED'
+    if (card.draft.status === 'approved' || card.draft.status === 'sent') return 'PRINTED'
+    if (card.draft.status === 'rejected') return 'KILLED'
     return ''
   })
 
   async function handle(action: 'approve' | 'edit-approve' | 'skip') {
     setBusy(true)
     await onAction(card.draft.id, action, text)
-    setDoneLabel(action === 'skip' ? 'SKIPPED' : 'APPROVED')
+    setDoneLabel(action === 'skip' ? 'KILLED' : 'PRINTED')
     setDone(true)
     setBusy(false)
   }
 
+  const pill = getPill(card.score, rank)
+  const cardBg = index % 2 === 0 ? '#FFF8F0' : '#FFFFFF'
+  const rawHandle = card.author_handle.startsWith('@')
+    ? card.author_handle.slice(1).toUpperCase()
+    : card.author_handle.toUpperCase()
+
   return (
-    <article className={`rounded-lg border border-white/[0.08] overflow-hidden transition-opacity duration-300 ${done ? 'opacity-40' : ''}`}>
-      <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-white/[0.08]">
-        <span className="text-sm font-medium text-white truncate">{card.author_handle}</span>
-        <ScoreBadge score={card.score} />
+    <article style={{
+      background: cardBg,
+      borderLeft: '3px solid #111',
+      borderRight: '3px solid #111',
+      borderBottom: '3px solid #111',
+      opacity: done ? 0.45 : 1,
+      transition: 'opacity 0.3s',
+    }}>
+      {/* Card header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: '12px',
+        padding: '10px 14px 10px',
+        borderBottom: '2px solid #111',
+      }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ marginBottom: '5px' }}>
+            <span style={{
+              display: 'inline-block',
+              background: pill.bg,
+              color: pill.color,
+              fontFamily: IMPACT,
+              fontSize: '10px',
+              letterSpacing: '0.08em',
+              padding: '2px 9px',
+            }}>
+              {pill.label}
+            </span>
+          </div>
+          <div style={{
+            fontFamily: IMPACT,
+            fontSize: '22px',
+            lineHeight: 1.1,
+            letterSpacing: '0.02em',
+            color: '#111',
+            wordBreak: 'break-word',
+          }}>
+            <span style={{ color: '#DC143C' }}>@</span>
+            {rawHandle} STRIKES AGAIN
+          </div>
+        </div>
+        <HeatBadge score={card.score} />
       </div>
 
-      <div className="px-4 py-3 border-b border-white/[0.08] text-[13px] text-white/50 leading-relaxed">
-        {card.content}
+      {/* Post content */}
+      <div style={{
+        padding: '10px 14px',
+        borderBottom: '2px solid #111',
+        borderLeft: '3px solid #FFD700',
+        marginLeft: '3px',
+      }}>
+        <p style={{
+          fontFamily: GEORGIA,
+          fontStyle: 'italic',
+          fontSize: '14px',
+          color: '#333',
+          lineHeight: 1.65,
+          margin: 0,
+        }}>
+          {card.content}
+        </p>
       </div>
 
-      <div className="px-4 py-3 border-b border-white/[0.08] bg-white/[0.015]">
-        <div className="font-mono text-[10px] tracking-[0.12em] text-white/25 mb-2">DRAFT REPLY</div>
+      {/* Draft reply */}
+      <div style={{
+        padding: '10px 14px',
+        borderBottom: '2px solid #111',
+        borderTop: '2px solid #FF006E',
+        background: 'rgba(255,0,110,0.04)',
+        outline: '0',
+        borderLeft: '3px solid #FF006E',
+        marginLeft: '3px',
+      }}>
+        <div style={{
+          fontFamily: IMPACT,
+          fontSize: '11px',
+          letterSpacing: '0.14em',
+          color: '#FF006E',
+          marginBottom: '7px',
+        }}>
+          YOUR HOT TAKE
+        </div>
         <textarea
           value={text}
           onChange={e => setText(e.target.value)}
           disabled={done || busy}
           rows={3}
-          className="w-full bg-black/50 border border-white/[0.08] rounded text-[13px] text-white/85 font-mono p-2.5 resize-y leading-relaxed outline-none focus:border-white/20 transition-colors disabled:opacity-50 placeholder-white/20"
+          style={{
+            width: '100%',
+            background: '#fff',
+            border: '1.5px solid #FF006E',
+            fontFamily: GEORGIA,
+            fontSize: '13px',
+            color: '#222',
+            padding: '8px 10px',
+            resize: 'vertical',
+            lineHeight: 1.55,
+            outline: 'none',
+            boxSizing: 'border-box',
+            opacity: done || busy ? 0.5 : 1,
+          }}
         />
-        <div className={`mt-1 font-mono text-[11px] ${text.length > 280 ? 'text-red-400' : 'text-white/25'}`}>
+        <div style={{
+          marginTop: '4px',
+          fontFamily: IMPACT,
+          fontSize: '11px',
+          color: text.length > 280 ? '#DC143C' : '#aaa',
+          letterSpacing: '0.06em',
+        }}>
           {text.length}/280
         </div>
       </div>
 
-      <div className="px-4 py-2.5 flex items-center gap-2">
+      {/* Action buttons */}
+      <div style={{
+        padding: '8px 14px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        background: cardBg,
+      }}>
         {done ? (
-          <span className="font-mono text-[11px] tracking-widest text-white/30">{doneLabel}</span>
+          <span style={{
+            fontFamily: IMPACT,
+            fontSize: '12px',
+            letterSpacing: '0.18em',
+            color: '#aaa',
+          }}>
+            {doneLabel}
+          </span>
         ) : (
           <>
             <button
               onClick={() => handle('approve')}
               disabled={busy}
-              className="px-3.5 py-1.5 text-xs font-medium rounded border border-green-700 bg-green-950/50 text-green-400 hover:bg-green-900/60 transition-colors disabled:opacity-50 cursor-pointer"
+              style={{
+                background: '#111',
+                color: '#FFD700',
+                border: 'none',
+                fontFamily: IMPACT,
+                fontSize: '12px',
+                letterSpacing: '0.1em',
+                padding: '8px 18px',
+                cursor: busy ? 'not-allowed' : 'pointer',
+                opacity: busy ? 0.5 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
             >
-              Approve
+              {busy ? <Spinner className="h-3 w-3" /> : null}
+              PRINT IT
             </button>
             <button
               onClick={() => handle('edit-approve')}
               disabled={busy}
-              className="px-3.5 py-1.5 text-xs font-medium rounded border border-white/[0.15] text-white/60 hover:border-white/25 hover:text-white/80 transition-colors disabled:opacity-50 cursor-pointer"
+              style={{
+                background: '#FFD700',
+                color: '#111',
+                border: 'none',
+                fontFamily: IMPACT,
+                fontSize: '12px',
+                letterSpacing: '0.1em',
+                padding: '8px 18px',
+                cursor: busy ? 'not-allowed' : 'pointer',
+                opacity: busy ? 0.5 : 1,
+              }}
             >
-              Edit + Approve
+              REWRITE
             </button>
             <button
               onClick={() => handle('skip')}
               disabled={busy}
-              className="px-3.5 py-1.5 text-xs font-medium rounded border border-white/[0.08] text-white/35 hover:border-white/[0.15] hover:text-white/50 transition-colors disabled:opacity-50 cursor-pointer ml-auto"
+              style={{
+                background: 'transparent',
+                color: '#aaa',
+                border: '1.5px solid #ccc',
+                fontFamily: IMPACT,
+                fontSize: '12px',
+                letterSpacing: '0.1em',
+                padding: '8px 18px',
+                cursor: busy ? 'not-allowed' : 'pointer',
+                opacity: busy ? 0.5 : 1,
+                marginLeft: 'auto',
+              }}
             >
-              Skip
+              KILL IT
             </button>
           </>
         )}
@@ -215,62 +389,251 @@ export default function Dashboard() {
 
   const pending = cards.filter(c => c.draft.status === 'pending')
   const done = cards.filter(c => c.draft.status !== 'pending')
+  const approvedCount = cards.filter(c => c.draft.status === 'approved').length
+  const sentCount = cards.filter(c => c.draft.status === 'sent').length
+  const avgHeat = cards.length > 0
+    ? (cards.reduce((s, c) => s + c.score, 0) / cards.length)
+    : 0
+
+  const stats = [
+    { label: 'PENDING',    value: pending.length,       hot: true  },
+    { label: 'APPROVED',   value: approvedCount,         hot: false },
+    { label: 'SENT TODAY', value: sentCount,             hot: false },
+    { label: 'AVG HEAT',   value: avgHeat.toFixed(1),   hot: true  },
+  ]
 
   return (
-    <div className="min-h-screen bg-[#0c0c0c] text-white">
-      <nav className="sticky top-0 z-10 border-b border-white/[0.06] bg-[#0c0c0c]/95 backdrop-blur-sm">
-        <div className="max-w-2xl mx-auto px-6 h-14 flex items-center justify-between">
-          <span className="font-mono text-[11px] tracking-[0.15em] text-white/30">REPLY GUY</span>
-          <button
-            onClick={handleRunScout}
-            disabled={scouting}
-            className="flex items-center gap-2 px-4 py-1.5 text-xs font-medium rounded border border-white/[0.15] text-white/60 hover:border-white/25 hover:text-white/80 transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            {scouting && <Spinner />}
-            {scouting ? 'Scouting...' : 'Run Scout'}
-          </button>
-        </div>
-      </nav>
+    <div style={{ minHeight: '100vh', background: '#FFF8F0' }}>
+      <style>{`
+        @keyframes ticker-scroll {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .ticker-track {
+          display: flex;
+          white-space: nowrap;
+          animation: ticker-scroll 35s linear infinite;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+      `}</style>
 
-      <main className="max-w-2xl mx-auto px-6 py-8">
+      {/* Scrolling ticker */}
+      <div style={{
+        background: '#DC143C',
+        height: '32px',
+        display: 'flex',
+        alignItems: 'center',
+        overflow: 'hidden',
+        position: 'sticky',
+        top: 0,
+        zIndex: 20,
+      }}>
+        <div style={{
+          flexShrink: 0,
+          background: '#FFD700',
+          color: '#DC143C',
+          padding: '0 14px',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          fontFamily: IMPACT,
+          fontSize: '11px',
+          letterSpacing: '0.12em',
+          zIndex: 1,
+        }}>
+          BREAKING
+        </div>
+        <div style={{ overflow: 'hidden', flex: 1 }}>
+          <div className="ticker-track">
+            <span style={{
+              fontFamily: IMPACT,
+              fontSize: '11px',
+              letterSpacing: '0.07em',
+              color: '#fff',
+              paddingLeft: '28px',
+            }}>
+              {TICKER_TEXT}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Masthead */}
+      <div style={{
+        background: '#FFF8F0',
+        borderBottom: '3px solid #111',
+        padding: '14px 24px 12px',
+      }}>
+        <div style={{
+          maxWidth: '680px',
+          margin: '0 auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+        }}>
+          <div style={{ flex: 1 }} />
+
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontFamily: IMPACT,
+              fontSize: '32px',
+              letterSpacing: '0.04em',
+              lineHeight: 1,
+            }}>
+              <span style={{ color: '#111' }}>REPLY</span>
+              <span style={{ color: '#DC143C' }}>GUY</span>
+              <span style={{ color: '#111' }}> WEEKLY</span>
+            </div>
+            <div style={{
+              fontFamily: IMPACT,
+              fontSize: '9px',
+              letterSpacing: '0.22em',
+              color: '#777',
+              textTransform: 'uppercase',
+              marginTop: '4px',
+            }}>
+              All the hot takes ★ None of the cringe
+            </div>
+          </div>
+
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={handleRunScout}
+              disabled={scouting}
+              style={{
+                background: '#DC143C',
+                color: '#fff',
+                border: 'none',
+                fontFamily: IMPACT,
+                fontSize: '11px',
+                letterSpacing: '0.1em',
+                padding: '9px 14px',
+                cursor: scouting ? 'not-allowed' : 'pointer',
+                opacity: scouting ? 0.7 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              {scouting && <Spinner className="h-3 w-3" />}
+              {scouting ? 'SCOUTING...' : '📸 SEND THE PAPS'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats bar */}
+      <div style={{
+        background: '#111',
+        borderBottom: '3px solid #FFD700',
+        padding: '8px 24px',
+      }}>
+        <div style={{
+          maxWidth: '680px',
+          margin: '0 auto',
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '40px',
+        }}>
+          {stats.map(({ label, value, hot }) => (
+            <div key={label} style={{ textAlign: 'center' }}>
+              <div style={{
+                fontFamily: IMPACT,
+                fontSize: '24px',
+                lineHeight: 1,
+                color: hot ? '#DC143C' : '#FFD700',
+              }}>
+                {value}
+              </div>
+              <div style={{
+                fontFamily: IMPACT,
+                fontSize: '9px',
+                letterSpacing: '0.16em',
+                color: '#888',
+                marginTop: '2px',
+              }}>
+                {label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <main style={{ maxWidth: '680px', margin: '0 auto', padding: '0 24px 56px' }}>
         {loading && (
-          <div className="flex justify-center py-20">
-            <Spinner className="h-5 w-5 text-white/30" />
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
+            <Spinner className="h-5 w-5" />
           </div>
         )}
 
         {!loading && error && (
-          <p className="text-center py-20 text-sm text-red-400/60">{error}</p>
+          <p style={{
+            textAlign: 'center',
+            padding: '80px 0',
+            fontFamily: IMPACT,
+            fontSize: '14px',
+            letterSpacing: '0.1em',
+            color: '#DC143C',
+          }}>
+            {error}
+          </p>
         )}
 
         {!loading && !error && cards.length === 0 && (
-          <p className="text-center py-20 text-sm text-white/25">
-            No drafts yet — hit{' '}
-            <span className="font-mono text-white/40">Run Scout</span> to start
+          <p style={{
+            textAlign: 'center',
+            padding: '80px 0',
+            fontFamily: IMPACT,
+            fontSize: '13px',
+            letterSpacing: '0.12em',
+            color: '#aaa',
+          }}>
+            NO STORIES YET —{' '}
+            <span style={{ color: '#DC143C' }}>📸 SEND THE PAPS</span>{' '}
+            TO BREAK A STORY
           </p>
         )}
 
         {!loading && !error && pending.length > 0 && (
-          <section className="mb-10">
-            <div className="font-mono text-[10px] tracking-[0.12em] text-white/25 mb-4">
-              PENDING · {pending.length}
+          <section>
+            <div style={{
+              background: '#111',
+              color: '#FFD700',
+              fontFamily: IMPACT,
+              fontSize: '14px',
+              letterSpacing: '0.14em',
+              textAlign: 'center',
+              padding: '9px 0',
+              border: '3px solid #111',
+            }}>
+              ★ HOT TAKES AWAITING YOUR VERDICT ★
             </div>
-            <div className="flex flex-col gap-3">
-              {pending.map(c => (
-                <PostCard key={c.id} card={c} onAction={handleAction} />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {pending.map((c, i) => (
+                <PostCard key={c.id} card={c} rank={i} index={i} onAction={handleAction} />
               ))}
             </div>
           </section>
         )}
 
         {!loading && !error && done.length > 0 && (
-          <section>
-            <div className="font-mono text-[10px] tracking-[0.12em] text-white/25 mb-4">
-              DONE · {done.length}
+          <section style={{ marginTop: pending.length > 0 ? '28px' : '0' }}>
+            <div style={{
+              background: '#888',
+              color: '#fff',
+              fontFamily: IMPACT,
+              fontSize: '12px',
+              letterSpacing: '0.14em',
+              textAlign: 'center',
+              padding: '7px 0',
+              border: '3px solid #888',
+            }}>
+              ✓ FILED &amp; ARCHIVED · {done.length}
             </div>
-            <div className="flex flex-col gap-3">
-              {done.map(c => (
-                <PostCard key={c.id} card={c} onAction={handleAction} />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {done.map((c, i) => (
+                <PostCard key={c.id} card={c} rank={pending.length + i} index={i} onAction={handleAction} />
               ))}
             </div>
           </section>
