@@ -1,82 +1,60 @@
 import anthropic
-import json
+from pathlib import Path
 from core.config import settings
+from core.models import Post
+
+VOICE_FILE = Path(__file__).parent.parent / "voice" / "tweets.txt"
 
 client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
-VOICE_CORPUS = """
-Arya Somu's writing style:
-- Concise and direct, no filler words
-- Confident but not arrogant
-- Thinks in systems and frameworks
-- Interested in macro, quant finance, AI, and institutional dynamics
-- Uses precise language, avoids vague generalities
-- Short punchy sentences mixed with longer analytical ones
-- Never uses em dashes
-- No excessive punctuation or exclamation marks
-- Engages with the actual substance of a post, not just the surface
-- Adds a specific angle or data point others haven't mentioned
-- Sounds like a sharp 19 year old who actually knows what he's talking about
-"""
 
-def draft_reply(post: dict) -> str:
-    prompt = f"""You are ghostwriting a reply for Arya Somu on X (Twitter).
+def _load_tweets() -> str:
+    lines = VOICE_FILE.read_text(encoding="utf-8").splitlines()
+    return "\n".join(f"• {l.strip()}" for l in lines if l.strip())
 
-Here is Arya's voice and style:
-{VOICE_CORPUS}
 
-Here is the post to reply to:
-Handle: {post.get('handle')}
-Text: {post.get('text')}
-Topics: {post.get('topics')}
+def draft_reply(post: Post) -> str:
+    voice_samples = _load_tweets()
+    system = f"""You are ghostwriting a reply on X (Twitter) that must sound exactly like the author of these sample tweets. Study them carefully — vocabulary, sentence length, rhythm, what they do and do not say.
 
-Write ONE reply that:
-- Is under 280 characters
-- Adds a specific angle, insight, or data point
-- Sounds exactly like Arya's voice
-- Does not start with "I" or the person's handle
-- Is not sycophantic ("great point", "love this", etc.)
-- Gets straight to the substance
+Sample tweets:
+{voice_samples}
 
-Return only the reply text, nothing else."""
+Rules for the reply:
+- Under 280 characters
+- Sounds indistinguishable from the author — not like an AI
+- Never starts with "I"
+- Engages directly with the substance, adds an angle the original post doesn't state
+- No filler: no "Great point", "Love this", "Fascinating", no AI-speak
+- Return only the reply text, nothing else"""
 
     response = client.messages.create(
-        model="claude-sonnet-4-6",
+        model="claude-sonnet-4-20250514",
         max_tokens=300,
-        messages=[{"role": "user", "content": prompt}]
+        system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Post to reply to:\n{post.content}\n\n"
+                f"Why it's reply-worthy: {post.score_reason or 'high engagement, relevant topic'}"
+            ),
+        }],
     )
     return response.content[0].text.strip()
 
-def run_draft(scored_posts: list[dict], top_n: int = 3) -> list[dict]:
-    top = [p for p in scored_posts if not p.get("is_ad") and p.get("score", 0) > 20][:top_n]
-    
+
+def run_draft(posts: list[Post], top_n: int = 3) -> list[tuple[Post, str]]:
+    top = sorted(
+        [p for p in posts if p.score is not None],
+        key=lambda p: p.score,
+        reverse=True,
+    )[:top_n]
+
     results = []
     for post in top:
-        print(f"Drafting reply for {post.get('handle')} (score: {post.get('score')})...")
+        print(f"Drafting reply for @{post.author_handle} (score: {post.score})...")
         draft = draft_reply(post)
-        post["draft_reply"] = draft
-        results.append(post)
         print(f"  Draft: {draft}\n")
-    
+        results.append((post, draft))
+
     return results
-
-if __name__ == "__main__":
-    from agents.scout import run_scout
-    from agents.score import run_score
-    import asyncio
-
-    print("Scouting...")
-    posts = asyncio.run(run_scout(num_posts=5))
-    
-    print("Scoring...")
-    scored = run_score(posts)
-    
-    print("\nDrafting replies...\n")
-    drafted = run_draft(scored, top_n=3)
-    
-    print("\nFinal output:")
-    for p in drafted:
-        print(f"POST: {p.get('handle')} -- {p.get('text', '')[:100]}")
-        print(f"REPLY: {p.get('draft_reply')}")
-        print(f"SCORE: {p.get('score')}")
-        print()
