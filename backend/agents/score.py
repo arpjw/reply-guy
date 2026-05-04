@@ -126,6 +126,7 @@ def run_score(posts: list[dict]) -> list[dict]:
             continue
         extracted["screenshot_path"] = path
         extracted["index"] = post["index"]
+        extracted["tweet_id"] = post.get("tweet_id")
         extracted["score"] = score_post(extracted)
         results.append(extracted)
         print(f"  {extracted.get('handle')} | score: {extracted['score']}")

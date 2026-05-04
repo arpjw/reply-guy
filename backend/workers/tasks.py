@@ -59,11 +59,10 @@ async def _pipeline() -> dict:
         for p in scored_posts:
             handle = p.get("handle") or ""
             text   = p.get("text") or ""
-            tid    = _tweet_id(handle, text)
+            tid    = p.get("tweet_id") or _tweet_id(handle, text)
 
             existing = await session.scalar(select(Post).where(Post.tweet_id == tid))
             if existing:
-                db_posts.append(existing)
                 continue
 
             topics = p.get("topics") or []

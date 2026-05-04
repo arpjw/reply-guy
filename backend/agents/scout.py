@@ -50,23 +50,43 @@ async def screenshot_post(page, index: int) -> dict:
         b64 = base64.b64encode(f.read()).decode()
     return {"index": index, "path": str(path), "b64": b64, "timestamp": timestamp}
 
+async def get_tweet_id_from_article(article) -> str | None:
+    links = await article.query_selector_all('a[href*="/status/"]')
+    for link in links:
+        href = await link.get_attribute('href')
+        if href and '/status/' in href:
+            parts = href.split('/status/')
+            if len(parts) > 1:
+                tid = parts[1].split('/')[0].split('?')[0]
+                if tid.isdigit():
+                    return tid
+    return None
+
+
 async def scroll_feed(page, num_posts: int = 10) -> list[dict]:
     await page.goto("https://x.com/home", wait_until="domcontentloaded")
     await asyncio.sleep(2)
 
     posts = []
+    seen_tweet_ids: set[str] = set()
+    processed_count = 0
     last_height = 0
 
     while len(posts) < num_posts:
         articles = await page.query_selector_all("article")
-        for i, article in enumerate(articles):
+        for article in articles[processed_count:]:
             if len(posts) >= num_posts:
                 break
-            if i < len(posts):
+            processed_count += 1
+            tweet_id = await get_tweet_id_from_article(article)
+            if tweet_id and tweet_id in seen_tweet_ids:
                 continue
             await article.scroll_into_view_if_needed()
             await asyncio.sleep(0.8)
             post_data = await screenshot_post(page, len(posts))
+            if tweet_id:
+                post_data["tweet_id"] = tweet_id
+                seen_tweet_ids.add(tweet_id)
             posts.append(post_data)
 
         current_height = await page.evaluate("document.body.scrollHeight")
