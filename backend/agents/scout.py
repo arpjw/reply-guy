@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import os
 from pathlib import Path
 from datetime import datetime
 from playwright.async_api import async_playwright
@@ -8,9 +9,13 @@ SCREENSHOTS_DIR = Path("screenshots")
 SCREENSHOTS_DIR.mkdir(exist_ok=True)
 
 async def launch_browser(playwright):
+    is_railway = os.environ.get("RAILWAY_ENVIRONMENT") is not None
+    args = ["--no-sandbox", "--disable-blink-features=AutomationControlled"]
+    if is_railway:
+        args += ["--disable-dev-shm-usage", "--disable-gpu"]
     browser = await playwright.chromium.launch(
-        headless=False,
-        args=["--no-sandbox", "--disable-blink-features=AutomationControlled"]
+        headless=is_railway,
+        args=args
     )
     context = await browser.new_context(
         viewport={"width": 1280, "height": 900},
