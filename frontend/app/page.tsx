@@ -82,60 +82,35 @@ const HEADLINE_TEMPLATES = [
   (h: string) => `@${h} BREAKS THE TIMELINE`,
 ]
 
-type PillStyle = { label: string; bg: string; color: string; accent: string }
+const STARBURST_16 = 'polygon(50% 0%,56% 30%,80% 10%,65% 35%,95% 30%,72% 50%,90% 75%,62% 62%,58% 92%,50% 68%,42% 92%,38% 62%,10% 75%,28% 50%,5% 30%,35% 35%,20% 10%,44% 30%)'
 
-const CATEGORY_PILLS: PillStyle[] = [
-  { label: 'DRAMA',    bg: '#FF006E', color: '#fff', accent: '#FF006E' },
-  { label: 'TEA',      bg: '#FFD700', color: '#111', accent: '#C8A000' },
-  { label: 'BREAKING', bg: '#DC143C', color: '#fff', accent: '#DC143C' },
-  { label: 'INSIDER',  bg: '#7B00D4', color: '#fff', accent: '#7B00D4' },
-]
+const STRIPE_BG = 'repeating-linear-gradient(90deg, #FF1493 0px, #FF1493 14px, #9B00FF 14px, #9B00FF 28px, #00FFFF 28px, #00FFFF 42px, #FFD700 42px, #FFD700 56px, #FF69B4 56px, #FF69B4 70px)'
 
-function getCategoryPill(score: number, index: number): PillStyle {
-  if (score >= 9.5) return CATEGORY_PILLS[2]
-  if (score >= 9)   return CATEGORY_PILLS[0]
-  return CATEGORY_PILLS[index % CATEGORY_PILLS.length]
+function StripeDivider() {
+  return <div style={{ height: '8px', background: STRIPE_BG }} />
 }
 
-function getStamp(index: number): { text: string; color: string } | null {
-  if (index === 0)      return { text: 'EXCLUSIVE',   color: '#DC143C' }
-  if (index % 5 === 2)  return { text: 'SOURCES SAY', color: '#FF006E' }
-  if (index % 7 === 4)  return { text: 'DEVELOPING',  color: '#7B00D4' }
+type CardVariant = 'pink' | 'blue' | 'yellow'
+const CARD_VARIANTS: CardVariant[] = ['pink', 'blue', 'yellow']
+
+interface CardStyle {
+  bg: string
+  borderColor: string
+  outlineColor: string
+  outlineStyle: 'dashed' | 'dotted'
+}
+
+const CARD_STYLES: Record<CardVariant, CardStyle> = {
+  pink:   { bg: '#FFF0F9', borderColor: '#FF1493', outlineColor: '#FF69B4', outlineStyle: 'dashed' },
+  blue:   { bg: '#F0F4FF', borderColor: '#9B00FF', outlineColor: '#9B00FF', outlineStyle: 'dotted' },
+  yellow: { bg: '#FFFBE0', borderColor: '#FFD700', outlineColor: '#FF1493', outlineStyle: 'dashed' },
+}
+
+function getStamp(index: number): string | null {
+  if (index === 0)     return 'EXCLUSIVE'
+  if (index % 5 === 2) return 'SOURCES SAY'
+  if (index % 7 === 4) return 'EXCLUSIVE'
   return null
-}
-
-const STARBURST_18 = 'polygon(50% 0%,56% 25%,79% 9%,66% 31%,93% 31%,72% 47%,87% 71%,64% 58%,57% 85%,50% 62%,43% 85%,36% 58%,13% 71%,28% 47%,7% 31%,34% 31%,21% 9%,44% 25%)'
-const STARBURST_24 = 'polygon(50% 0%,56% 20%,74% 7%,65% 27%,87% 22%,74% 39%,97% 43%,78% 53%,91% 70%,70% 65%,73% 87%,57% 74%,50% 95%,43% 74%,27% 87%,30% 65%,9% 70%,22% 53%,3% 43%,26% 39%,13% 22%,35% 27%,26% 7%,44% 20%)'
-
-function StarburstBadge({ score, size = 64 }: { score: number; size?: number }) {
-  const hot = score >= 9
-  return (
-    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      {hot && (
-        <div style={{
-          position: 'absolute', inset: '-4px',
-          background: '#DC143C',
-          clipPath: STARBURST_18,
-        }} />
-      )}
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: '#FFD700',
-        clipPath: STARBURST_18,
-      }} />
-      <div style={{
-        position: 'absolute', inset: 0,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <div style={{ fontFamily: IMPACT, fontSize: Math.round(size * 0.28) + 'px', color: '#111', lineHeight: 1 }}>
-          {score % 1 === 0 ? score : score.toFixed(1)}
-        </div>
-        <div style={{ fontFamily: IMPACT, fontSize: Math.round(size * 0.115) + 'px', color: '#111' }}>
-          🔥 HEAT
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function PostCard({
@@ -166,82 +141,91 @@ function PostCard({
     setBusy(false)
   }
 
-  const pill = getCategoryPill(card.score, index)
+  const variant = CARD_VARIANTS[index % 3]
+  const cs = CARD_STYLES[variant]
   const stamp = getStamp(index)
   const subheadline = SUBHEADLINES[index % SUBHEADLINES.length]
   const rawHandle = card.author_handle.startsWith('@')
     ? card.author_handle.slice(1).toUpperCase()
     : card.author_handle.toUpperCase()
   const headline = HEADLINE_TEMPLATES[index % HEADLINE_TEMPLATES.length](rawHandle)
-  const isLead = index % 3 === 0
+  const isLead = index === 0
+  const hot = card.score > 60
 
   return (
     <article style={{
-      background: '#fff',
-      border: '1.5px solid #111',
-      borderTop: `5px solid ${pill.accent}`,
+      background: cs.bg,
+      border: `4px solid ${cs.borderColor}`,
+      outline: `2px ${cs.outlineStyle} ${cs.outlineColor}`,
+      outlineOffset: '3px',
       position: 'relative',
       opacity: done ? 0.42 : 1,
       transition: 'opacity 0.3s',
-      overflow: 'hidden',
+      overflow: 'visible',
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
     }}>
+
+      {/* Heat starburst — pokes outside the card border */}
+      <div style={{
+        position: 'absolute', top: '-6px', right: '-6px',
+        width: '52px', height: '52px', zIndex: 4,
+        clipPath: STARBURST_16,
+        background: hot ? '#FF1493' : '#FFD700',
+        animation: `pulse ${hot ? '1s' : '2s'} ease-in-out infinite alternate`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexDirection: 'column',
+      }}>
+        <div style={{ fontFamily: IMPACT, fontSize: '13px', color: hot ? '#fff' : '#111', lineHeight: 1 }}>
+          {card.score % 1 === 0 ? card.score : card.score.toFixed(1)}
+        </div>
+        <div style={{ fontFamily: IMPACT, fontSize: '7px', color: hot ? '#fff' : '#111' }}>HEAT</div>
+      </div>
+
+      {/* Corner stamp */}
       {stamp && (
         <div style={{
-          position: 'absolute', top: '20px', right: '-30px',
-          background: stamp.color, color: '#fff',
-          fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.16em',
-          padding: '5px 44px',
-          transform: 'rotate(20deg)',
-          zIndex: 10, boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-          pointerEvents: 'none',
+          position: 'absolute', bottom: '-4px', left: '-4px',
+          background: '#fff', border: '2px solid #FF1493',
+          transform: 'rotate(8deg)',
+          fontFamily: IMPACT, fontSize: '8px', letterSpacing: '0.1em',
+          color: '#FF1493', padding: '2px 6px', zIndex: 3,
         }}>
-          {stamp.text}
+          {stamp}
         </div>
       )}
 
       {/* Card header */}
-      <div style={{ padding: '14px 16px 12px', borderBottom: '1.5px solid #111' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ marginBottom: '6px' }}>
-              <span style={{
-                background: pill.bg, color: pill.color,
-                fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.16em',
-                padding: '2px 9px', display: 'inline-block',
-              }}>
-                {pill.label}
-              </span>
-            </div>
-            <h2 style={{
-              fontFamily: GEORGIA, fontWeight: 'bold',
-              fontSize: isLead ? '25px' : '17px',
-              lineHeight: 1.0, letterSpacing: '-0.02em',
-              color: '#111', margin: '0 0 5px',
-              textTransform: 'uppercase', wordBreak: 'break-word',
-            }}>
-              {headline}
-            </h2>
-            <p style={{
-              fontFamily: GEORGIA, fontStyle: 'italic',
-              fontSize: '12px', color: '#555',
-              margin: 0, lineHeight: 1.4,
-            }}>
-              {subheadline}
-            </p>
-          </div>
-          <StarburstBadge score={card.score} size={isLead ? 70 : 56} />
-        </div>
+      <div style={{
+        padding: `14px 52px 12px 16px`,
+        borderBottom: `2px solid ${cs.borderColor}`,
+      }}>
+        <h2 style={{
+          fontFamily: GEORGIA, fontWeight: 'bold',
+          fontSize: isLead ? '25px' : '17px',
+          lineHeight: 1.0, letterSpacing: '-0.02em',
+          color: '#111', margin: '0 0 5px',
+          textTransform: 'uppercase', wordBreak: 'break-word',
+        }}>
+          {headline}
+        </h2>
+        <p style={{
+          fontFamily: GEORGIA, fontStyle: 'italic',
+          fontSize: '12px', color: '#555',
+          margin: 0, lineHeight: 1.4,
+        }}>
+          {subheadline}
+        </p>
       </div>
 
-      {/* Post content */}
+      {/* Post content — dual-sided borders */}
       <div style={{
-        borderLeft: `4px solid ${pill.accent}`,
+        borderLeft: '4px solid #9B00FF',
+        borderRight: '4px solid #FF1493',
         margin: '12px 16px',
         padding: '8px 12px',
-        background: 'rgba(0,0,0,0.018)',
+        background: 'rgba(155,0,255,0.04)',
       }}>
         <p style={{
           fontFamily: GEORGIA, fontStyle: 'italic',
@@ -252,40 +236,46 @@ function PostCard({
         </p>
       </div>
 
-      {/* YOUR RESPONSE */}
-      <div style={{
-        padding: '10px 16px 12px',
-        borderTop: '2px dashed #FF006E',
-        background: 'rgba(255,0,110,0.018)',
-        flex: 1, display: 'flex', flexDirection: 'column', gap: '7px',
-      }}>
+      {/* Draft block — ♥ label simulates ::before on the dashed border */}
+      <div style={{ margin: '0 16px 12px', position: 'relative', flex: 1 }}>
         <div style={{
-          fontFamily: IMPACT, fontSize: '9px',
-          letterSpacing: '0.28em', color: '#FF006E',
+          position: 'absolute', top: '-11px', left: '50%',
+          transform: 'translateX(-50%)',
+          background: cs.bg, color: '#FF1493',
+          fontSize: '18px', lineHeight: 1, padding: '0 6px', zIndex: 1,
         }}>
-          YOUR RESPONSE
+          ♥
         </div>
-        <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
-          disabled={done || busy}
-          rows={3}
-          style={{
-            width: '100%', background: '#fff',
-            border: '1.5px dashed #FF006E',
-            fontFamily: GEORGIA, fontSize: '13px', color: '#222',
-            padding: '8px 10px', resize: 'vertical',
-            lineHeight: 1.55, outline: 'none',
-            boxSizing: 'border-box',
-            opacity: done || busy ? 0.5 : 1,
-          }}
-        />
         <div style={{
-          fontFamily: GEORGIA, fontStyle: 'italic', fontSize: '11px',
-          color: text.length > 280 ? '#DC143C' : '#bbb',
-          textAlign: 'right',
+          border: '3px dashed #FF1493',
+          padding: '12px', height: '100%',
+          display: 'flex', flexDirection: 'column', gap: '7px',
         }}>
-          {text.length}/280
+          <div style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.28em', color: '#FF1493' }}>
+            YOUR RESPONSE
+          </div>
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            disabled={done || busy}
+            rows={3}
+            style={{
+              width: '100%', background: '#fff',
+              border: '1.5px solid #FF69B4',
+              fontFamily: GEORGIA, fontSize: '13px', color: '#222',
+              padding: '8px 10px', resize: 'vertical',
+              lineHeight: 1.55, outline: 'none',
+              boxSizing: 'border-box',
+              opacity: done || busy ? 0.5 : 1,
+            }}
+          />
+          <div style={{
+            fontFamily: GEORGIA, fontStyle: 'italic', fontSize: '11px',
+            color: text.length > 280 ? '#FF1493' : '#bbb',
+            textAlign: 'right',
+          }}>
+            {text.length}/280
+          </div>
         </div>
       </div>
 
@@ -293,36 +283,40 @@ function PostCard({
       <div style={{
         padding: '10px 16px 14px',
         display: 'flex', alignItems: 'center', gap: '8px',
-        borderTop: '1px solid #e8e0d8',
-        background: '#FFF8F0',
+        borderTop: '2px dashed #FF1493',
+        background: 'rgba(255,20,147,0.04)',
       }}>
         {done ? (
-          <span style={{ fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.2em', color: '#bbb' }}>
+          <span style={{ fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.2em', color: '#FF1493' }}>
             ✓ {doneLabel}
           </span>
         ) : (
           <>
             <button
+              type="button"
               onClick={() => handle('approve')}
               disabled={busy}
               style={{
-                background: '#111', color: '#fff', border: 'none',
+                background: '#FF1493', color: '#FFD700',
+                border: '3px solid #CC0066',
                 fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.1em',
                 padding: '9px 18px',
                 cursor: busy ? 'not-allowed' : 'pointer',
                 opacity: busy ? 0.5 : 1,
                 display: 'flex', alignItems: 'center', gap: '6px',
+                textShadow: '1px 1px 0 #CC0066',
               }}
             >
               {busy && <Spinner className="h-3 w-3" />}
               PUBLISH IT
             </button>
             <button
+              type="button"
               onClick={() => handle('edit-approve')}
               disabled={busy}
               style={{
-                background: 'transparent', color: '#FF006E',
-                border: '2px solid #FF006E',
+                background: '#FFD700', color: '#9B00FF',
+                border: '3px solid #9B00FF',
                 fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.1em',
                 padding: '7px 18px',
                 cursor: busy ? 'not-allowed' : 'pointer',
@@ -332,6 +326,7 @@ function PostCard({
               REWRITE
             </button>
             <button
+              type="button"
               onClick={() => handle('skip')}
               disabled={busy}
               style={{
@@ -359,10 +354,10 @@ function CardGrid({ cards, rankOffset, onAction }: {
   onAction: (draftId: number, action: 'approve' | 'edit-approve' | 'skip', text: string) => Promise<void>
 }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
       {cards.map((c, i) => {
         const globalIndex = rankOffset + i
-        const isFullWidth = globalIndex % 3 === 0
+        const isFullWidth = i === 0
         return (
           <div key={c.id} style={{ gridColumn: isFullWidth ? 'span 2' : 'span 1' }}>
             <PostCard card={c} rank={globalIndex} index={globalIndex} onAction={onAction} />
@@ -449,174 +444,213 @@ export default function Dashboard() {
     : 0
 
   const stats = [
-    { label: 'PENDING',  value: pending.length,     hot: true  },
-    { label: 'APPROVED', value: approvedCount,       hot: false },
-    { label: 'SENT',     value: sentCount,           hot: false },
-    { label: 'AVG HEAT', value: avgHeat.toFixed(1), hot: true  },
+    { label: 'PENDING',  value: pending.length,    isHeat: false },
+    { label: 'APPROVED', value: approvedCount,      isHeat: false },
+    { label: 'SENT',     value: sentCount,          isHeat: false },
+    { label: 'AVG HEAT', value: avgHeat.toFixed(1), isHeat: true  },
   ]
 
   return (
-    <div className="mag-root" style={{ minHeight: '100vh', backgroundColor: '#FFF8F0' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#FFE4F7' }}>
       <style>{`
-        @keyframes ticker-scroll {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
+        @keyframes pulse {
+          0%   { transform: scale(1); }
+          100% { transform: scale(1.06); }
         }
-        .ticker-track {
-          display: flex;
-          white-space: nowrap;
-          animation: ticker-scroll 38s linear infinite;
+        @keyframes wiggle {
+          0%   { transform: rotate(-2deg); }
+          100% { transform: rotate(2deg); }
+        }
+        @keyframes shimmer {
+          0%   { background-position: 0% center; }
+          100% { background-position: 200% center; }
+        }
+        @keyframes ticker {
+          0%   { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
         }
         *, *::before, *::after { box-sizing: border-box; }
-        button:hover:not(:disabled) { filter: brightness(0.88); }
-        .mag-root {
-          background-color: #FFF8F0;
-          background-image:
-            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
-            repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(160,130,100,0.04) 31px, rgba(160,130,100,0.04) 32px);
+        button:hover:not(:disabled) { filter: brightness(0.9); }
+        .y2k-shimmer {
+          background: linear-gradient(90deg, #FF1493, #9B00FF, #00FFFF, #FFD700, #FF1493);
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: shimmer 3s linear infinite;
+          display: inline-block;
+        }
+        .y2k-banner {
+          background: #FF1493;
+          color: #FFD700;
+          font-family: Impact, 'Arial Black', sans-serif;
+          font-size: 13px;
+          letter-spacing: 0.16em;
+          text-align: center;
+          padding: 10px 100px;
+          border-top: 4px solid #FFD700;
+          border-bottom: 4px solid #9B00FF;
+          margin-bottom: 18px;
+          position: relative;
+        }
+        .y2k-banner::before {
+          content: '✦ ✦ ✦';
+          color: #00FFFF;
+          position: absolute;
+          left: 20px;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        .y2k-banner::after {
+          content: '✦ ✦ ✦';
+          color: #00FFFF;
+          position: absolute;
+          right: 20px;
+          top: 50%;
+          transform: translateY(-50%);
         }
       `}</style>
 
       {/* ── MASTHEAD ── */}
-      <header style={{ background: '#FFF8F0' }}>
-        <div style={{ height: '5px', background: '#111' }} />
-        <div style={{ height: '1.5px', background: '#111', marginTop: '3px' }} />
-        <div style={{ padding: '16px 28px 14px', maxWidth: '960px', margin: '0 auto' }}>
+      <header style={{
+        background: 'repeating-linear-gradient(45deg, #FFB3DE 0px, #FFB3DE 14px, #FFE4F7 14px, #FFE4F7 28px)',
+        padding: '16px 28px',
+      }}>
+        <div style={{
+          maxWidth: '960px', margin: '0 auto',
+          background: '#FFFAF8', border: '4px solid #FF1493',
+          padding: '20px 28px',
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
 
-            {/* FREE INSIDE double-ring starburst */}
-            <div style={{ position: 'relative', width: '82px', height: '82px', flexShrink: 0 }}>
-              <div style={{
-                position: 'absolute', inset: 0,
-                background: '#111',
-                clipPath: STARBURST_18,
-              }} />
-              <div style={{
-                position: 'absolute', inset: '6px',
-                background: '#FFD700',
-                clipPath: STARBURST_18,
-              }} />
-              <div style={{
-                position: 'absolute', inset: 0,
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-              }}>
-                <div style={{ fontFamily: IMPACT, fontSize: '10px', letterSpacing: '0.04em', color: '#111', lineHeight: 1.25 }}>
-                  FREE<br />INSIDE
-                </div>
+            {/* FREE INSIDE — 72px cyan starburst, wiggle */}
+            <div style={{
+              width: '72px', height: '72px', flexShrink: 0,
+              clipPath: STARBURST_16,
+              background: '#00FFFF',
+              animation: 'wiggle 0.45s ease-in-out infinite alternate',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexDirection: 'column', textAlign: 'center',
+            }}>
+              <div style={{ fontFamily: IMPACT, fontSize: '12px', color: '#111', lineHeight: 1.25, letterSpacing: '0.03em' }}>
+                FREE<br />INSIDE
               </div>
             </div>
 
-            {/* Masthead title */}
+            {/* Masthead logo */}
             <div style={{ textAlign: 'center', flex: 1 }}>
-              <div style={{ lineHeight: 0.92, letterSpacing: '-0.03em' }}>
-                <span style={{ fontFamily: GEORGIA, fontWeight: 'bold', fontSize: '70px', color: '#111', display: 'inline-block' }}>REPLYGUY</span>
-                <span style={{ fontFamily: GEORGIA, fontWeight: 'bold', fontSize: '44px', color: '#FF006E', marginLeft: '12px', display: 'inline-block' }}>WEEKLY</span>
+              <div style={{ letterSpacing: '-0.03em', marginBottom: '8px' }}>
+                <span style={{
+                  fontFamily: GEORGIA, fontWeight: 'bold', fontSize: '72px',
+                  color: '#FF1493',
+                  WebkitTextStroke: '2px #CC0066',
+                  textShadow: '4px 4px 0 #9B00FF',
+                  display: 'inline-block', lineHeight: 0.92,
+                }}>REPLY</span>
+                <span style={{
+                  fontFamily: GEORGIA, fontWeight: 'bold', fontSize: '72px',
+                  color: '#9B00FF',
+                  textShadow: '4px 4px 0 #FF1493',
+                  display: 'inline-block', lineHeight: 0.92, marginLeft: '10px',
+                }}>GUY</span>
               </div>
-              <div style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.34em', color: '#888', marginTop: '7px' }}>
-                ALL THE HOT TAKES &nbsp;★&nbsp; NONE OF THE CRINGE
+              <div style={{ fontFamily: GEORGIA, fontStyle: 'italic', fontSize: '22px' }}>
+                <span className="y2k-shimmer">weekly</span>
               </div>
             </div>
 
-            {/* SEND THE PAPS double-ring starburst button */}
+            {/* SEND THE PAPS — 82px yellow starburst button, pulse */}
             <button
+              type="button"
               onClick={handleRunScout}
               disabled={scouting}
               style={{
-                position: 'relative', width: '90px', height: '90px',
-                background: 'none', border: 'none',
+                width: '82px', height: '82px', flexShrink: 0,
+                clipPath: STARBURST_16,
+                background: '#FFD700',
+                animation: 'pulse 1.2s ease-in-out infinite alternate',
+                border: 'none',
                 cursor: scouting ? 'not-allowed' : 'pointer',
-                transform: 'rotate(-9deg)',
-                padding: 0, flexShrink: 0,
                 opacity: scouting ? 0.7 : 1,
-                filter: 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexDirection: 'column', textAlign: 'center', padding: 0,
               }}
             >
-              <div style={{
-                position: 'absolute', inset: 0,
-                background: '#111',
-                clipPath: STARBURST_24,
-              }} />
-              <div style={{
-                position: 'absolute', inset: '7px',
-                background: '#FFD700',
-                clipPath: STARBURST_24,
-              }} />
-              <div style={{
-                position: 'absolute', inset: 0,
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center',
-                textAlign: 'center', padding: '26%',
-              }}>
-                {scouting
-                  ? <Spinner className="h-4 w-4" />
-                  : <div style={{ fontFamily: IMPACT, fontSize: '8px', letterSpacing: '0.05em', color: '#111', lineHeight: 1.35 }}>
-                      📸<br />SEND<br />THE<br />PAPS
-                    </div>
-                }
-              </div>
+              {scouting
+                ? <Spinner className="h-4 w-4" />
+                : <div style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.05em', color: '#111', lineHeight: 1.35 }}>
+                    📸<br />SEND<br />THE<br />PAPS
+                  </div>
+              }
             </button>
           </div>
         </div>
-        <div style={{ height: '1.5px', background: '#111', marginBottom: '3px' }} />
-        <div style={{ height: '5px', background: '#111' }} />
       </header>
 
-      {/* ── CATEGORY STRIP ── */}
-      <div style={{
-        background: '#FFF8F0',
-        borderBottom: '1px solid #bbb',
-        padding: '6px 28px',
-        textAlign: 'center',
-      }}>
-        <span style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.26em', color: '#555' }}>
+      <StripeDivider />
+
+      {/* ── NAV STRIP ── */}
+      <div style={{ background: '#FFE4F7', padding: '7px 28px', textAlign: 'center' }}>
+        <span style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.26em', color: '#9B00FF' }}>
           CELEB NEWS &nbsp;•&nbsp; REAL LIFE &nbsp;•&nbsp; DRAMA &nbsp;•&nbsp; SHOWBIZ &nbsp;•&nbsp; INSIDER &nbsp;•&nbsp; HOT TAKES
         </span>
       </div>
 
-      {/* ── BREAKING NEWS TICKER ── */}
+      <StripeDivider />
+
+      {/* ── TICKER — sticky ── */}
       <div style={{
-        background: '#DC143C', height: '32px',
+        background: '#FF1493',
+        borderTop: '4px solid #FFD700',
+        borderBottom: '4px solid #00FFFF',
+        height: '36px',
         display: 'flex', alignItems: 'center',
         overflow: 'hidden',
         position: 'sticky', top: 0, zIndex: 20,
       }}>
         <div style={{
           flexShrink: 0,
-          background: '#FFD700', color: '#DC143C',
+          background: 'rgba(0,0,0,0.18)', color: '#00FFFF',
           padding: '0 16px', height: '100%',
           display: 'flex', alignItems: 'center',
-          fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.14em',
+          fontFamily: IMPACT, fontSize: '13px', letterSpacing: '0.14em',
         }}>
-          BREAKING
+          OMG!!!
         </div>
         <div style={{ overflow: 'hidden', flex: 1 }}>
-          <div className="ticker-track">
-            <span style={{ fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.07em', color: '#fff', paddingLeft: '28px' }}>
+          <div style={{
+            display: 'inline-block', whiteSpace: 'nowrap',
+            animation: 'ticker 38s linear infinite',
+          }}>
+            <span style={{ fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.07em', color: '#FFD700', paddingLeft: '28px' }}>
               {TICKER_TEXT}
             </span>
           </div>
         </div>
       </div>
 
+      <StripeDivider />
+
       {/* ── STATS BAR ── */}
-      <div style={{ background: '#111', padding: '12px 28px' }}>
+      <div style={{ background: '#1A001A', borderTop: '3px solid #00FFFF', padding: '12px 28px' }}>
         <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', alignItems: 'stretch' }}>
-          {stats.map(({ label, value, hot }, i) => (
+          {stats.map(({ label, value, isHeat }, i) => (
             <div key={label} style={{
               flex: 1, textAlign: 'center', padding: '6px 0',
-              borderRight: i < stats.length - 1 ? '1px solid #2a2a2a' : 'none',
+              borderRight: i < stats.length - 1 ? '2px solid #FF1493' : 'none',
             }}>
               <div style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.22em', color: '#666', marginBottom: '4px' }}>
                 {label}
               </div>
-              <div style={{ fontFamily: IMPACT, fontSize: '28px', color: hot ? '#DC143C' : '#FFD700', lineHeight: 1 }}>
+              <div style={{ fontFamily: IMPACT, fontSize: '28px', color: isHeat ? '#FFD700' : '#00FFFF', lineHeight: 1 }}>
                 {value}
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      <StripeDivider />
 
       {/* ── MAIN CONTENT ── */}
       <main style={{ maxWidth: '960px', margin: '0 auto', padding: '22px 28px 72px' }}>
@@ -629,7 +663,7 @@ export default function Dashboard() {
         {!loading && error && (
           <p style={{
             textAlign: 'center', padding: '80px 0',
-            fontFamily: IMPACT, fontSize: '14px', letterSpacing: '0.1em', color: '#DC143C',
+            fontFamily: IMPACT, fontSize: '14px', letterSpacing: '0.1em', color: '#FF1493',
           }}>
             {error}
           </p>
@@ -638,22 +672,17 @@ export default function Dashboard() {
         {!loading && !error && cards.length === 0 && (
           <p style={{
             textAlign: 'center', padding: '80px 0',
-            fontFamily: IMPACT, fontSize: '13px', letterSpacing: '0.12em', color: '#aaa',
+            fontFamily: IMPACT, fontSize: '13px', letterSpacing: '0.12em', color: '#9B00FF',
           }}>
             NO STORIES YET —{' '}
-            <span style={{ color: '#DC143C' }}>📸 SEND THE PAPS</span>{' '}
+            <span style={{ color: '#FF1493' }}>📸 SEND THE PAPS</span>{' '}
             TO BREAK A STORY
           </p>
         )}
 
         {!loading && !error && pending.length > 0 && (
           <section>
-            <div style={{
-              background: '#111', color: '#FFD700',
-              fontFamily: IMPACT, fontSize: '12px', letterSpacing: '0.16em',
-              textAlign: 'center', padding: '10px 0',
-              marginBottom: '18px',
-            }}>
+            <div className="y2k-banner">
               ★&nbsp; HOT TAKES AWAITING YOUR VERDICT &nbsp;★
             </div>
             <CardGrid cards={pending} rankOffset={0} onAction={handleAction} />
@@ -662,12 +691,7 @@ export default function Dashboard() {
 
         {!loading && !error && done.length > 0 && (
           <section style={{ marginTop: pending.length > 0 ? '36px' : '0' }}>
-            <div style={{
-              background: '#777', color: '#fff',
-              fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.16em',
-              textAlign: 'center', padding: '8px 0',
-              marginBottom: '18px',
-            }}>
+            <div className="y2k-banner">
               ✓&nbsp; FILED &amp; ARCHIVED &nbsp;·&nbsp; {done.length} STORIES
             </div>
             <CardGrid cards={done} rankOffset={pending.length} onAction={handleAction} />
