@@ -82,13 +82,13 @@ const HEADLINE_TEMPLATES = [
   (h: string) => `@${h} BREAKS THE TIMELINE`,
 ]
 
-type PillStyle = { label: string; bg: string; color: string }
+type PillStyle = { label: string; bg: string; color: string; accent: string }
 
 const CATEGORY_PILLS: PillStyle[] = [
-  { label: 'DRAMA',    bg: '#FF006E', color: '#fff' },
-  { label: 'TEA',      bg: '#FFD700', color: '#111' },
-  { label: 'BREAKING', bg: '#DC143C', color: '#fff' },
-  { label: 'INSIDER',  bg: '#7B00D4', color: '#fff' },
+  { label: 'DRAMA',    bg: '#FF006E', color: '#fff', accent: '#FF006E' },
+  { label: 'TEA',      bg: '#FFD700', color: '#111', accent: '#C8A000' },
+  { label: 'BREAKING', bg: '#DC143C', color: '#fff', accent: '#DC143C' },
+  { label: 'INSIDER',  bg: '#7B00D4', color: '#fff', accent: '#7B00D4' },
 ]
 
 function getCategoryPill(score: number, index: number): PillStyle {
@@ -98,9 +98,9 @@ function getCategoryPill(score: number, index: number): PillStyle {
 }
 
 function getStamp(index: number): { text: string; color: string } | null {
-  if (index === 0)      return { text: 'EXCLUSIVE',  color: '#DC143C' }
+  if (index === 0)      return { text: 'EXCLUSIVE',   color: '#DC143C' }
   if (index % 5 === 2)  return { text: 'SOURCES SAY', color: '#FF006E' }
-  if (index % 7 === 4)  return { text: 'DEVELOPING', color: '#7B00D4' }
+  if (index % 7 === 4)  return { text: 'DEVELOPING',  color: '#7B00D4' }
   return null
 }
 
@@ -111,19 +111,26 @@ function StarburstBadge({ score, size = 64 }: { score: number; size?: number }) 
   const hot = score >= 9
   return (
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      {hot && (
+        <div style={{
+          position: 'absolute', inset: '-4px',
+          background: '#DC143C',
+          clipPath: STARBURST_18,
+        }} />
+      )}
       <div style={{
         position: 'absolute', inset: 0,
-        background: hot ? '#DC143C' : '#FFD700',
+        background: '#FFD700',
         clipPath: STARBURST_18,
       }} />
       <div style={{
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       }}>
-        <div style={{ fontFamily: IMPACT, fontSize: Math.round(size * 0.28) + 'px', color: hot ? '#FFD700' : '#111', lineHeight: 1 }}>
+        <div style={{ fontFamily: IMPACT, fontSize: Math.round(size * 0.28) + 'px', color: '#111', lineHeight: 1 }}>
           {score % 1 === 0 ? score : score.toFixed(1)}
         </div>
-        <div style={{ fontFamily: IMPACT, fontSize: Math.round(size * 0.125) + 'px', color: hot ? '#FFD700' : '#111' }}>
+        <div style={{ fontFamily: IMPACT, fontSize: Math.round(size * 0.115) + 'px', color: '#111' }}>
           🔥 HEAT
         </div>
       </div>
@@ -171,9 +178,10 @@ function PostCard({
   return (
     <article style={{
       background: '#fff',
-      border: '2px solid #111',
+      border: '1.5px solid #111',
+      borderTop: `5px solid ${pill.accent}`,
       position: 'relative',
-      opacity: done ? 0.4 : 1,
+      opacity: done ? 0.42 : 1,
       transition: 'opacity 0.3s',
       overflow: 'hidden',
       display: 'flex',
@@ -182,12 +190,12 @@ function PostCard({
     }}>
       {stamp && (
         <div style={{
-          position: 'absolute', top: '18px', right: '-24px',
+          position: 'absolute', top: '20px', right: '-30px',
           background: stamp.color, color: '#fff',
-          fontFamily: IMPACT, fontSize: '10px', letterSpacing: '0.14em',
-          padding: '4px 36px',
+          fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.16em',
+          padding: '5px 44px',
           transform: 'rotate(20deg)',
-          zIndex: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+          zIndex: 10, boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
           pointerEvents: 'none',
         }}>
           {stamp.text}
@@ -195,50 +203,50 @@ function PostCard({
       )}
 
       {/* Card header */}
-      <div style={{ padding: '12px 14px 10px', borderBottom: '2px solid #111' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+      <div style={{ padding: '14px 16px 12px', borderBottom: '1.5px solid #111' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ marginBottom: '5px' }}>
+            <div style={{ marginBottom: '6px' }}>
               <span style={{
                 background: pill.bg, color: pill.color,
-                fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.14em',
-                padding: '2px 8px', display: 'inline-block',
+                fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.16em',
+                padding: '2px 9px', display: 'inline-block',
               }}>
                 {pill.label}
               </span>
             </div>
             <h2 style={{
               fontFamily: GEORGIA, fontWeight: 'bold',
-              fontSize: isLead ? '22px' : '16px',
-              lineHeight: 1.05, letterSpacing: '-0.02em',
-              color: '#111', margin: '0 0 4px',
+              fontSize: isLead ? '25px' : '17px',
+              lineHeight: 1.0, letterSpacing: '-0.02em',
+              color: '#111', margin: '0 0 5px',
               textTransform: 'uppercase', wordBreak: 'break-word',
             }}>
               {headline}
             </h2>
             <p style={{
               fontFamily: GEORGIA, fontStyle: 'italic',
-              fontSize: '12px', color: '#666',
-              margin: 0, lineHeight: 1.35,
+              fontSize: '12px', color: '#555',
+              margin: 0, lineHeight: 1.4,
             }}>
               {subheadline}
             </p>
           </div>
-          <StarburstBadge score={card.score} size={isLead ? 64 : 52} />
+          <StarburstBadge score={card.score} size={isLead ? 70 : 56} />
         </div>
       </div>
 
       {/* Post content */}
       <div style={{
-        borderLeft: '4px solid #FF006E',
-        margin: '10px 14px',
-        padding: '6px 10px',
-        background: 'rgba(255,0,110,0.03)',
+        borderLeft: `4px solid ${pill.accent}`,
+        margin: '12px 16px',
+        padding: '8px 12px',
+        background: 'rgba(0,0,0,0.018)',
       }}>
         <p style={{
           fontFamily: GEORGIA, fontStyle: 'italic',
           fontSize: '13px', color: '#333',
-          lineHeight: 1.6, margin: 0,
+          lineHeight: 1.65, margin: 0,
         }}>
           &ldquo;{card.content}&rdquo;
         </p>
@@ -246,14 +254,14 @@ function PostCard({
 
       {/* YOUR RESPONSE */}
       <div style={{
-        padding: '8px 14px 10px',
+        padding: '10px 16px 12px',
         borderTop: '2px dashed #FF006E',
-        background: 'rgba(255,0,110,0.02)',
-        flex: 1, display: 'flex', flexDirection: 'column', gap: '6px',
+        background: 'rgba(255,0,110,0.018)',
+        flex: 1, display: 'flex', flexDirection: 'column', gap: '7px',
       }}>
         <div style={{
           fontFamily: IMPACT, fontSize: '9px',
-          letterSpacing: '0.22em', color: '#FF006E',
+          letterSpacing: '0.28em', color: '#FF006E',
         }}>
           YOUR RESPONSE
         </div>
@@ -275,6 +283,7 @@ function PostCard({
         <div style={{
           fontFamily: GEORGIA, fontStyle: 'italic', fontSize: '11px',
           color: text.length > 280 ? '#DC143C' : '#bbb',
+          textAlign: 'right',
         }}>
           {text.length}/280
         </div>
@@ -282,13 +291,14 @@ function PostCard({
 
       {/* Action buttons */}
       <div style={{
-        padding: '8px 14px 12px',
+        padding: '10px 16px 14px',
         display: 'flex', alignItems: 'center', gap: '8px',
-        borderTop: '1px solid #eee',
+        borderTop: '1px solid #e8e0d8',
+        background: '#FFF8F0',
       }}>
         {done ? (
-          <span style={{ fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.18em', color: '#bbb' }}>
-            {doneLabel}
+          <span style={{ fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.2em', color: '#bbb' }}>
+            ✓ {doneLabel}
           </span>
         ) : (
           <>
@@ -298,7 +308,7 @@ function PostCard({
               style={{
                 background: '#111', color: '#fff', border: 'none',
                 fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.1em',
-                padding: '8px 16px',
+                padding: '9px 18px',
                 cursor: busy ? 'not-allowed' : 'pointer',
                 opacity: busy ? 0.5 : 1,
                 display: 'flex', alignItems: 'center', gap: '6px',
@@ -314,7 +324,7 @@ function PostCard({
                 background: 'transparent', color: '#FF006E',
                 border: '2px solid #FF006E',
                 fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.1em',
-                padding: '6px 16px',
+                padding: '7px 18px',
                 cursor: busy ? 'not-allowed' : 'pointer',
                 opacity: busy ? 0.5 : 1,
               }}
@@ -326,9 +336,9 @@ function PostCard({
               disabled={busy}
               style={{
                 background: 'transparent', color: '#999',
-                border: '1.5px solid #ddd',
+                border: '1px solid #ddd',
                 fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.1em',
-                padding: '6px 16px',
+                padding: '7px 18px',
                 cursor: busy ? 'not-allowed' : 'pointer',
                 opacity: busy ? 0.5 : 1,
                 marginLeft: 'auto',
@@ -439,21 +449,14 @@ export default function Dashboard() {
     : 0
 
   const stats = [
-    { label: 'PENDING',    value: pending.length,     hot: true  },
-    { label: 'APPROVED',   value: approvedCount,       hot: false },
-    { label: 'SENT TODAY', value: sentCount,           hot: false },
-    { label: 'AVG HEAT',   value: avgHeat.toFixed(1), hot: true  },
+    { label: 'PENDING',  value: pending.length,     hot: true  },
+    { label: 'APPROVED', value: approvedCount,       hot: false },
+    { label: 'SENT',     value: sentCount,           hot: false },
+    { label: 'AVG HEAT', value: avgHeat.toFixed(1), hot: true  },
   ]
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#FFF8F0',
-      backgroundImage: [
-        'repeating-linear-gradient(0deg, transparent, transparent 28px, rgba(160,130,100,0.04) 28px, rgba(160,130,100,0.04) 29px)',
-        'repeating-linear-gradient(90deg, transparent, transparent 28px, rgba(160,130,100,0.03) 28px, rgba(160,130,100,0.03) 29px)',
-      ].join(', '),
-    }}>
+    <div className="mag-root" style={{ minHeight: '100vh', backgroundColor: '#FFF8F0' }}>
       <style>{`
         @keyframes ticker-scroll {
           0%   { transform: translateX(0); }
@@ -462,22 +465,34 @@ export default function Dashboard() {
         .ticker-track {
           display: flex;
           white-space: nowrap;
-          animation: ticker-scroll 35s linear infinite;
+          animation: ticker-scroll 38s linear infinite;
         }
         *, *::before, *::after { box-sizing: border-box; }
         button:hover:not(:disabled) { filter: brightness(0.88); }
+        .mag-root {
+          background-color: #FFF8F0;
+          background-image:
+            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
+            repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(160,130,100,0.04) 31px, rgba(160,130,100,0.04) 32px);
+        }
       `}</style>
 
       {/* ── MASTHEAD ── */}
       <header style={{ background: '#FFF8F0' }}>
-        <div style={{ height: '3px', background: '#111' }} />
-        <div style={{ padding: '14px 28px', maxWidth: '960px', margin: '0 auto' }}>
+        <div style={{ height: '5px', background: '#111' }} />
+        <div style={{ height: '1.5px', background: '#111', marginTop: '3px' }} />
+        <div style={{ padding: '16px 28px 14px', maxWidth: '960px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
 
-            {/* FREE INSIDE starburst */}
-            <div style={{ position: 'relative', width: '76px', height: '76px', flexShrink: 0 }}>
+            {/* FREE INSIDE double-ring starburst */}
+            <div style={{ position: 'relative', width: '82px', height: '82px', flexShrink: 0 }}>
               <div style={{
                 position: 'absolute', inset: 0,
+                background: '#111',
+                clipPath: STARBURST_18,
+              }} />
+              <div style={{
+                position: 'absolute', inset: '6px',
                 background: '#FFD700',
                 clipPath: STARBURST_18,
               }} />
@@ -492,26 +507,26 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Title */}
+            {/* Masthead title */}
             <div style={{ textAlign: 'center', flex: 1 }}>
-              <div style={{ lineHeight: 1, letterSpacing: '-0.02em' }}>
-                <span style={{ fontFamily: GEORGIA, fontWeight: 'bold', fontSize: '62px', color: '#111' }}>REPLYGUY</span>
-                <span style={{ fontFamily: GEORGIA, fontWeight: 'bold', fontSize: '38px', color: '#FF006E', marginLeft: '10px' }}>WEEKLY</span>
+              <div style={{ lineHeight: 0.92, letterSpacing: '-0.03em' }}>
+                <span style={{ fontFamily: GEORGIA, fontWeight: 'bold', fontSize: '70px', color: '#111', display: 'inline-block' }}>REPLYGUY</span>
+                <span style={{ fontFamily: GEORGIA, fontWeight: 'bold', fontSize: '44px', color: '#FF006E', marginLeft: '12px', display: 'inline-block' }}>WEEKLY</span>
               </div>
-              <div style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.28em', color: '#999', marginTop: '5px' }}>
+              <div style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.34em', color: '#888', marginTop: '7px' }}>
                 ALL THE HOT TAKES &nbsp;★&nbsp; NONE OF THE CRINGE
               </div>
             </div>
 
-            {/* SEND THE PAPS starburst button */}
+            {/* SEND THE PAPS double-ring starburst button */}
             <button
               onClick={handleRunScout}
               disabled={scouting}
               style={{
-                position: 'relative', width: '84px', height: '84px',
+                position: 'relative', width: '90px', height: '90px',
                 background: 'none', border: 'none',
                 cursor: scouting ? 'not-allowed' : 'pointer',
-                transform: 'rotate(-8deg)',
+                transform: 'rotate(-9deg)',
                 padding: 0, flexShrink: 0,
                 opacity: scouting ? 0.7 : 1,
                 filter: 'none',
@@ -519,6 +534,11 @@ export default function Dashboard() {
             >
               <div style={{
                 position: 'absolute', inset: 0,
+                background: '#111',
+                clipPath: STARBURST_24,
+              }} />
+              <div style={{
+                position: 'absolute', inset: '7px',
                 background: '#FFD700',
                 clipPath: STARBURST_24,
               }} />
@@ -526,7 +546,7 @@ export default function Dashboard() {
                 position: 'absolute', inset: 0,
                 display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center',
-                textAlign: 'center', padding: '22%',
+                textAlign: 'center', padding: '26%',
               }}>
                 {scouting
                   ? <Spinner className="h-4 w-4" />
@@ -538,17 +558,18 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
-        <div style={{ height: '3px', background: '#111' }} />
+        <div style={{ height: '1.5px', background: '#111', marginBottom: '3px' }} />
+        <div style={{ height: '5px', background: '#111' }} />
       </header>
 
       {/* ── CATEGORY STRIP ── */}
       <div style={{
         background: '#FFF8F0',
-        borderBottom: '1px solid #ccc',
-        padding: '5px 28px',
+        borderBottom: '1px solid #bbb',
+        padding: '6px 28px',
         textAlign: 'center',
       }}>
-        <span style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.22em', color: '#444' }}>
+        <span style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.26em', color: '#555' }}>
           CELEB NEWS &nbsp;•&nbsp; REAL LIFE &nbsp;•&nbsp; DRAMA &nbsp;•&nbsp; SHOWBIZ &nbsp;•&nbsp; INSIDER &nbsp;•&nbsp; HOT TAKES
         </span>
       </div>
@@ -563,9 +584,9 @@ export default function Dashboard() {
         <div style={{
           flexShrink: 0,
           background: '#FFD700', color: '#DC143C',
-          padding: '0 14px', height: '100%',
+          padding: '0 16px', height: '100%',
           display: 'flex', alignItems: 'center',
-          fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.12em',
+          fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.14em',
         }}>
           BREAKING
         </div>
@@ -579,17 +600,17 @@ export default function Dashboard() {
       </div>
 
       {/* ── STATS BAR ── */}
-      <div style={{ background: '#111', padding: '10px 28px' }}>
+      <div style={{ background: '#111', padding: '12px 28px' }}>
         <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', alignItems: 'stretch' }}>
           {stats.map(({ label, value, hot }, i) => (
             <div key={label} style={{
               flex: 1, textAlign: 'center', padding: '6px 0',
               borderRight: i < stats.length - 1 ? '1px solid #2a2a2a' : 'none',
             }}>
-              <div style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.2em', color: '#777', marginBottom: '3px' }}>
+              <div style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.22em', color: '#666', marginBottom: '4px' }}>
                 {label}
               </div>
-              <div style={{ fontFamily: IMPACT, fontSize: '26px', color: hot ? '#DC143C' : '#FFD700', lineHeight: 1 }}>
+              <div style={{ fontFamily: IMPACT, fontSize: '28px', color: hot ? '#DC143C' : '#FFD700', lineHeight: 1 }}>
                 {value}
               </div>
             </div>
@@ -598,7 +619,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── MAIN CONTENT ── */}
-      <main style={{ maxWidth: '960px', margin: '0 auto', padding: '20px 28px 64px' }}>
+      <main style={{ maxWidth: '960px', margin: '0 auto', padding: '22px 28px 72px' }}>
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
             <Spinner className="h-5 w-5" />
@@ -629,25 +650,25 @@ export default function Dashboard() {
           <section>
             <div style={{
               background: '#111', color: '#FFD700',
-              fontFamily: IMPACT, fontSize: '13px', letterSpacing: '0.14em',
-              textAlign: 'center', padding: '9px 0',
-              marginBottom: '16px',
+              fontFamily: IMPACT, fontSize: '12px', letterSpacing: '0.16em',
+              textAlign: 'center', padding: '10px 0',
+              marginBottom: '18px',
             }}>
-              ★ HOT TAKES AWAITING YOUR VERDICT ★
+              ★&nbsp; HOT TAKES AWAITING YOUR VERDICT &nbsp;★
             </div>
             <CardGrid cards={pending} rankOffset={0} onAction={handleAction} />
           </section>
         )}
 
         {!loading && !error && done.length > 0 && (
-          <section style={{ marginTop: pending.length > 0 ? '32px' : '0' }}>
+          <section style={{ marginTop: pending.length > 0 ? '36px' : '0' }}>
             <div style={{
-              background: '#888', color: '#fff',
-              fontFamily: IMPACT, fontSize: '12px', letterSpacing: '0.14em',
-              textAlign: 'center', padding: '7px 0',
-              marginBottom: '16px',
+              background: '#777', color: '#fff',
+              fontFamily: IMPACT, fontSize: '11px', letterSpacing: '0.16em',
+              textAlign: 'center', padding: '8px 0',
+              marginBottom: '18px',
             }}>
-              ✓ FILED &amp; ARCHIVED · {done.length}
+              ✓&nbsp; FILED &amp; ARCHIVED &nbsp;·&nbsp; {done.length} STORIES
             </div>
             <CardGrid cards={done} rankOffset={pending.length} onAction={handleAction} />
           </section>
