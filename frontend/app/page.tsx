@@ -1,7 +1,10 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+
+type AuthUser = { id: number; x_handle: string }
 
 type Post = {
   id: number
@@ -369,10 +372,33 @@ function CardGrid({ cards, rankOffset, onAction }: {
 }
 
 export default function Dashboard() {
+  const router = useRouter()
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
   const [cards, setCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(true)
   const [scouting, setScouting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`${API}/auth/me`, { credentials: 'include' }).then(res => {
+      if (res.status === 401) {
+        router.replace('/login')
+      } else if (res.ok) {
+        res.json().then((data: AuthUser) => {
+          setUser(data)
+          setAuthChecked(true)
+        })
+      } else {
+        setAuthChecked(true)
+      }
+    }).catch(() => setAuthChecked(true))
+  }, [router])
+
+  async function handleLogout() {
+    await fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' })
+    router.replace('/login')
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -449,6 +475,14 @@ export default function Dashboard() {
     { label: 'SENT',     value: sentCount,          isHeat: false },
     { label: 'AVG HEAT', value: avgHeat.toFixed(1), isHeat: true  },
   ]
+
+  if (!authChecked) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#FFE4F7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Spinner className="h-5 w-5" />
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#FFE4F7' }}>
@@ -559,30 +593,54 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* SEND THE PAPS — 82px yellow starburst button, pulse */}
-            <button
-              type="button"
-              onClick={handleRunScout}
-              disabled={scouting}
-              style={{
-                width: '82px', height: '82px', flexShrink: 0,
-                clipPath: STARBURST_16,
-                background: '#FFD700',
-                animation: 'pulse 1.2s ease-in-out infinite alternate',
-                border: 'none',
-                cursor: scouting ? 'not-allowed' : 'pointer',
-                opacity: scouting ? 0.7 : 1,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexDirection: 'column', textAlign: 'center', padding: 0,
-              }}
-            >
-              {scouting
-                ? <Spinner className="h-4 w-4" />
-                : <div style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.05em', color: '#111', lineHeight: 1.35 }}>
-                    📸<br />SEND<br />THE<br />PAPS
-                  </div>
-              }
-            </button>
+            {/* Right side: handle + logout stacked above SEND THE PAPS */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              {user && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+                  <span style={{ fontFamily: IMPACT, fontSize: '10px', letterSpacing: '0.08em', color: '#9B00FF' }}>
+                    @{user.x_handle}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    style={{
+                      background: 'transparent', color: '#aaa',
+                      border: '1px solid #ddd',
+                      fontFamily: IMPACT, fontSize: '8px', letterSpacing: '0.14em',
+                      padding: '2px 8px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    LOG OUT
+                  </button>
+                </div>
+              )}
+
+              {/* SEND THE PAPS — 82px yellow starburst button, pulse */}
+              <button
+                type="button"
+                onClick={handleRunScout}
+                disabled={scouting}
+                style={{
+                  width: '82px', height: '82px',
+                  clipPath: STARBURST_16,
+                  background: '#FFD700',
+                  animation: 'pulse 1.2s ease-in-out infinite alternate',
+                  border: 'none',
+                  cursor: scouting ? 'not-allowed' : 'pointer',
+                  opacity: scouting ? 0.7 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexDirection: 'column', textAlign: 'center', padding: 0,
+                }}
+              >
+                {scouting
+                  ? <Spinner className="h-4 w-4" />
+                  : <div style={{ fontFamily: IMPACT, fontSize: '9px', letterSpacing: '0.05em', color: '#111', lineHeight: 1.35 }}>
+                      📸<br />SEND<br />THE<br />PAPS
+                    </div>
+                }
+              </button>
+            </div>
           </div>
         </div>
       </header>

@@ -4,7 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db import get_db
-from core.models import Draft, DraftStatus, Post, SentReply
+from core.models import Draft, DraftStatus, Post, SentReply, User
+from api.deps import get_current_user
 from api.schemas import DraftOut, DraftPatch
 from agents.send import send_reply
 
@@ -15,8 +16,13 @@ router = APIRouter(prefix="/drafts", tags=["drafts"])
 async def list_drafts(
     status: Optional[DraftStatus] = Query(None),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    q = select(Draft).order_by(Draft.created_at.desc())
+    q = (
+        select(Draft)
+        .where(Draft.user_id == current_user.id)
+        .order_by(Draft.created_at.desc())
+    )
     if status is not None:
         q = q.where(Draft.status == status)
     result = await db.execute(q)
@@ -28,8 +34,11 @@ async def update_draft(
     draft_id: int,
     patch: DraftPatch,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(Draft).where(Draft.id == draft_id))
+    result = await db.execute(
+        select(Draft).where(Draft.id == draft_id, Draft.user_id == current_user.id)
+    )
     draft = result.scalar_one_or_none()
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
@@ -46,8 +55,11 @@ async def update_draft(
 async def approve_draft(
     draft_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(Draft).where(Draft.id == draft_id))
+    result = await db.execute(
+        select(Draft).where(Draft.id == draft_id, Draft.user_id == current_user.id)
+    )
     draft = result.scalar_one_or_none()
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
@@ -61,8 +73,11 @@ async def approve_draft(
 async def send_draft(
     draft_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    draft_result = await db.execute(select(Draft).where(Draft.id == draft_id))
+    draft_result = await db.execute(
+        select(Draft).where(Draft.id == draft_id, Draft.user_id == current_user.id)
+    )
     draft = draft_result.scalar_one_or_none()
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
@@ -81,7 +96,7 @@ async def send_draft(
         raise HTTPException(status_code=422, detail=result["error"])
 
     draft.status = DraftStatus.sent
-    db.add(SentReply(draft_id=draft.id, tweet_url=tweet_url))
+    db.add(SentReply(draft_id=draft.id, user_id=current_user.id, tweet_url=tweet_url))
     await db.commit()
     await db.refresh(draft)
     return draft

@@ -9,7 +9,7 @@ from agents.draft import draft_reply
 from agents.score import run_score
 from agents.scout import run_scout
 from core.db import AsyncSessionLocal
-from core.models import Draft, DraftStatus, Post
+from core.models import Draft, DraftStatus, Post, User
 from workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -18,10 +18,10 @@ SCORE_THRESHOLD = 7.0
 VOICE_PROFILE_VERSION = "v1"
 
 
-async def _draft_with_retry(post, max_retries=3, base_delay=2) -> str:
+async def _draft_with_retry(post, voice_profile: str, max_retries=3, base_delay=2) -> str:
     for attempt in range(max_retries + 1):
         try:
-            return draft_reply(post)
+            return draft_reply(post, voice_profile)
         except anthropic.APIStatusError as exc:
             if exc.status_code == 529 and attempt < max_retries:
                 delay = base_delay * (2 ** attempt)
@@ -39,7 +39,7 @@ def _tweet_id(handle: str, text: str) -> str:
     return hashlib.md5(f"{handle}:{text}".encode()).hexdigest()[:20]
 
 
-async def _pipeline() -> dict:
+async def _pipeline(user_id: int | None = None) -> dict:
     logger.info("Pipeline started")
 
     # 1. Scout: open X feed and screenshot 10 posts
@@ -54,6 +54,12 @@ async def _pipeline() -> dict:
     drafts_created = 0
 
     async with AsyncSessionLocal() as session:
+        voice_profile = ""
+        if user_id is not None:
+            user = await session.scalar(select(User).where(User.id == user_id))
+            if user:
+                voice_profile = user.voice_profile or ""
+
         # 3. Persist all scored posts, skipping duplicates
         db_posts: list[Post] = []
         for p in scored_posts:
@@ -97,7 +103,7 @@ async def _pipeline() -> dict:
                 continue
 
             try:
-                draft_text = await _draft_with_retry(post)
+                draft_text = await _draft_with_retry(post, voice_profile)
             except Exception as exc:
                 logger.error(
                     "Failed to draft reply for @%s after retries, skipping: %s",

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.db import init_db
-from api.routes import drafts, posts, workers
+from api.routes import auth, drafts, posts, workers
 
 
 @asynccontextmanager
@@ -22,6 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(posts.router)
 app.include_router(drafts.router)
 app.include_router(workers.router)

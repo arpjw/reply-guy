@@ -1,20 +1,16 @@
 import anthropic
-from pathlib import Path
 from core.config import settings
 from core.models import Post
-
-VOICE_FILE = Path(__file__).parent.parent / "voice" / "tweets.txt"
 
 client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
 
-def _load_tweets() -> str:
-    lines = VOICE_FILE.read_text(encoding="utf-8").splitlines()
-    return "\n".join(f"• {l.strip()}" for l in lines if l.strip())
+def _format_voice(voice_profile: str) -> str:
+    return "\n".join(f"• {l.strip()}" for l in voice_profile.splitlines() if l.strip())
 
 
-def draft_reply(post: Post) -> str:
-    voice_samples = _load_tweets()
+def draft_reply(post: Post, voice_profile: str) -> str:
+    voice_samples = _format_voice(voice_profile)
     system = f"""You are ghostwriting a reply on X (Twitter) that must sound exactly like the author of these sample tweets. Study them carefully — vocabulary, sentence length, rhythm, what they do and do not say.
 
 Sample tweets:
@@ -43,7 +39,7 @@ Rules for the reply:
     return response.content[0].text.strip()
 
 
-def run_draft(posts: list[Post], top_n: int = 3) -> list[tuple[Post, str]]:
+def run_draft(posts: list[Post], voice_profile: str, top_n: int = 3) -> list[tuple[Post, str]]:
     top = sorted(
         [p for p in posts if p.score is not None],
         key=lambda p: p.score,
@@ -53,7 +49,7 @@ def run_draft(posts: list[Post], top_n: int = 3) -> list[tuple[Post, str]]:
     results = []
     for post in top:
         print(f"Drafting reply for @{post.author_handle} (score: {post.score})...")
-        draft = draft_reply(post)
+        draft = draft_reply(post, voice_profile)
         print(f"  Draft: {draft}\n")
         results.append((post, draft))
 

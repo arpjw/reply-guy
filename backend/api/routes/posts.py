@@ -4,7 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db import get_db
-from core.models import Post
+from core.models import Post, User
+from api.deps import get_current_user
 from api.schemas import PostOut
 
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -16,8 +17,13 @@ async def list_posts(
     page_size: int = Query(20, ge=1, le=100),
     min_score: Optional[float] = Query(None),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    q = select(Post).order_by(Post.scraped_at.desc())
+    q = (
+        select(Post)
+        .where(Post.user_id == current_user.id)
+        .order_by(Post.scraped_at.desc())
+    )
     if min_score is not None:
         q = q.where(Post.score >= min_score)
     q = q.offset((page - 1) * page_size).limit(page_size)
