@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, Enum
 
 from core.db import Base
@@ -22,7 +22,7 @@ class User(Base):
     refresh_token = Column(Text, nullable=False)
     token_expires_at = Column(DateTime, nullable=False)
     voice_profile = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Post(Base):
