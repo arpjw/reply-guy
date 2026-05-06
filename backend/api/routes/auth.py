@@ -26,9 +26,11 @@ _COOKIE_SESSION = "session"
 _SESSION_TTL_DAYS = 30
 
 
+_REDIRECT_URI = "https://backend-production-1468.up.railway.app/auth/callback"
+
+
 def _redirect_uri(request: Request) -> str:
-    base = str(request.base_url).rstrip("/")
-    return f"{base}/auth/callback"
+    return _REDIRECT_URI
 
 
 def _make_jwt(user_id: int) -> str:
