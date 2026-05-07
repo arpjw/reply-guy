@@ -151,7 +151,10 @@ async def twitter_callback(
         user.refresh_token = refresh_token
         user.token_expires_at = token_expires_at
 
-    voice_profile = await build_voice_profile(access_token, x_user_id)
+    try:
+        voice_profile = await build_voice_profile(access_token, x_user_id)
+    except Exception:
+        voice_profile = ""
     user.voice_profile = voice_profile
 
     await db.commit()
