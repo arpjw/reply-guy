@@ -83,6 +83,7 @@ async def _pipeline(user_id: int | None = None) -> dict:
                 screenshot_path=p.get("screenshot_path"),
                 score=p.get("score"),
                 score_reason=score_reason,
+                user_id=user_id,
             )
             session.add(post)
             db_posts.append(post)
