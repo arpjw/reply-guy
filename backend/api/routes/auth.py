@@ -39,7 +39,7 @@ def _redirect_uri(request: Request) -> str:
 
 def _make_jwt(user_id: int) -> str:
     payload = {
-        "sub": user_id,
+        "sub": str(user_id),
         "exp": datetime.now(timezone.utc) + timedelta(days=_SESSION_TTL_DAYS),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
