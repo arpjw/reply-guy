@@ -71,8 +71,10 @@ async def send_reply(tweet_url: str, reply_text: str) -> dict:
 
             body_text = await page.inner_text("body")
             if _check_captcha(page.url, body_text):
+                print("SEND FAIL: captcha_detected", flush=True)
                 return {"success": False, "error": "captcha_detected"}
             if _check_rate_limited(body_text):
+                print("SEND FAIL: rate_limit", flush=True)
                 return {"success": False, "error": "rate_limit"}
 
             # On a tweet detail page the reply composer is inline; try it first.
@@ -95,6 +97,7 @@ async def send_reply(tweet_url: str, reply_text: str) -> dict:
 
             body_text = await page.inner_text("body")
             if _check_rate_limited(body_text):
+                print("SEND FAIL: rate_limit", flush=True)
                 return {"success": False, "error": "rate_limit"}
 
             # Inline reply composer uses tweetButtonInline; modal uses tweetButton
@@ -108,13 +111,18 @@ async def send_reply(tweet_url: str, reply_text: str) -> dict:
 
             body_text = await page.inner_text("body")
             if _check_captcha(page.url, body_text):
+                print("SEND FAIL: captcha_detected", flush=True)
                 return {"success": False, "error": "captcha_detected"}
             if _check_rate_limited(body_text):
+                print("SEND FAIL: rate_limit", flush=True)
                 return {"success": False, "error": "rate_limit"}
 
             return {"success": True, "error": None}
 
         except Exception as exc:
+            import traceback
+            err = traceback.format_exc()
+            print(f"SEND ERROR: {err}", flush=True)
             return {"success": False, "error": str(exc)}
         finally:
             await browser.close()
