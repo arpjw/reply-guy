@@ -472,8 +472,10 @@ export default function Dashboard() {
         body: JSON.stringify({ draft_text: text }),
       })
       await fetch(`${API}/drafts/${draftId}/approve`, { method: 'POST', headers: authHeader() })
+      await fetch(`${API}/drafts/${draftId}/send`, { method: 'POST', headers: authHeader() })
     } else {
       await fetch(`${API}/drafts/${draftId}/approve`, { method: 'POST', headers: authHeader() })
+      await fetch(`${API}/drafts/${draftId}/send`, { method: 'POST', headers: authHeader() })
     }
   }
 
