@@ -159,7 +159,7 @@ async def twitter_callback(
 
     session_token = _make_jwt(user.id)
 
-    response = RedirectResponse("/")
+    response = RedirectResponse("https://replyguy.aryasomu.com")
     response.set_cookie(
         _COOKIE_SESSION,
         session_token,
