@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 
 import httpx
 import jwt
+import redis.asyncio as aioredis
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select
@@ -21,12 +22,15 @@ _AUTHORIZE_URL = "https://twitter.com/i/oauth2/authorize"
 _TOKEN_URL = "https://api.twitter.com/2/oauth2/token"
 _USERS_ME_URL = "https://api.twitter.com/2/users/me"
 _SCOPES = "tweet.read users.read offline.access"
-_COOKIE_VERIFIER = "pkce_verifier"
 _COOKIE_SESSION = "session"
 _SESSION_TTL_DAYS = 30
 
 
 _REDIRECT_URI = "https://backend-production-1468.up.railway.app/auth/callback"
+
+
+def _redis() -> aioredis.Redis:
+    return aioredis.from_url(settings.redis_url, decode_responses=True)
 
 
 def _redirect_uri(request: Request) -> str:
@@ -58,6 +62,9 @@ async def twitter_login(request: Request):
 
     state = secrets.token_urlsafe(16)
 
+    async with _redis() as r:
+        await r.set(f"pkce:{state}", code_verifier, ex=600)
+
     params = {
         "response_type": "code",
         "client_id": settings.twitter_client_id,
@@ -69,17 +76,7 @@ async def twitter_login(request: Request):
     }
     url = httpx.URL(_AUTHORIZE_URL).copy_with(params=params)
 
-    response = RedirectResponse(str(url))
-    # Sign the verifier as a short-lived cookie (HTTPOnly, SameSite=lax)
-    response.set_cookie(
-        _COOKIE_VERIFIER,
-        code_verifier,
-        max_age=600,
-        httponly=True,
-        samesite="lax",
-        secure=request.url.scheme == "https",
-    )
-    return response
+    return RedirectResponse(str(url))
 
 
 # ---------------------------------------------------------------------------
@@ -92,10 +89,11 @@ async def twitter_callback(
     code: str,
     state: str,
     db: AsyncSession = Depends(get_db),
-    pkce_verifier: str | None = Cookie(default=None, alias=_COOKIE_VERIFIER),
 ):
+    async with _redis() as r:
+        pkce_verifier = await r.getdel(f"pkce:{state}")
     if not pkce_verifier:
-        raise HTTPException(status_code=400, detail="Missing PKCE verifier cookie")
+        raise HTTPException(status_code=400, detail="Missing or expired PKCE verifier")
 
     # Exchange code for tokens
     async with httpx.AsyncClient() as client:
@@ -162,7 +160,6 @@ async def twitter_callback(
     session_token = _make_jwt(user.id)
 
     response = RedirectResponse("/")
-    response.delete_cookie(_COOKIE_VERIFIER)
     response.set_cookie(
         _COOKIE_SESSION,
         session_token,
