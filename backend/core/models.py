@@ -20,9 +20,9 @@ class User(Base):
     x_handle = Column(String, nullable=False)
     access_token = Column(Text, nullable=False)
     refresh_token = Column(Text, nullable=False)
-    token_expires_at = Column(DateTime, nullable=False)
+    token_expires_at = Column(DateTime(timezone=True), nullable=False)
     voice_profile = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class Post(Base):
