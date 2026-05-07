@@ -53,6 +53,26 @@ def _check_captcha(url: str, text: str) -> bool:
     return any(re.search(p, lower) for p in _CAPTCHA_PATTERNS)
 
 
+async def _login(page, username: str, password: str) -> None:
+    await page.wait_for_selector('input[name="text"], input[autocomplete="username"]', timeout=10_000)
+    username_input = page.locator('input[name="text"], input[autocomplete="username"]').first
+    await username_input.fill(username)
+    await page.keyboard.press("Enter")
+    await asyncio.sleep(1.5)
+
+    # Handle optional "phone or username" challenge
+    challenge = page.locator('input[data-testid="ocfEnterTextTextInput"]')
+    if await challenge.is_visible():
+        await challenge.fill(username)
+        await page.keyboard.press("Enter")
+        await asyncio.sleep(1.5)
+
+    await page.wait_for_selector('input[name="password"]', timeout=10_000)
+    await page.locator('input[name="password"]').fill(password)
+    await page.keyboard.press("Enter")
+    await asyncio.sleep(3)
+
+
 async def send_reply(tweet_url: str, reply_text: str) -> dict:
     session_path = None
     b64 = os.environ.get("SESSION_JSON_B64")
@@ -62,12 +82,24 @@ async def send_reply(tweet_url: str, reply_text: str) -> dict:
         tmp.close()
         session_path = tmp.name
 
+    username = os.environ.get("TWITTER_USERNAME", "")
+    password = os.environ.get("TWITTER_PASSWORD", "")
+
     async with async_playwright() as playwright:
         browser, context = await _launch_browser(playwright, session_path)
         page = await context.new_page()
         try:
             await page.goto(tweet_url, wait_until="domcontentloaded", timeout=30_000)
             await asyncio.sleep(2)
+
+            if any(s in page.url for s in ("login", "flow")):
+                if not username or not password:
+                    print("SEND FAIL: login_required but no credentials", flush=True)
+                    return {"success": False, "error": "login_required"}
+                print("SEND: redirected to login, attempting credentials", flush=True)
+                await _login(page, username, password)
+                await page.goto(tweet_url, wait_until="domcontentloaded", timeout=30_000)
+                await asyncio.sleep(2)
 
             body_text = await page.inner_text("body")
             if _check_captcha(page.url, body_text):
