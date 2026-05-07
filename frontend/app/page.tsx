@@ -393,7 +393,10 @@ export default function Dashboard() {
       localStorage.setItem('auth_token', urlToken)
       window.history.replaceState({}, '', window.location.pathname)
     }
-    fetch(`${API}/auth/me`, { headers: authHeader() }).then(res => {
+    const headers = urlToken
+      ? { Authorization: `Bearer ${urlToken}` }
+      : authHeader()
+    fetch(`${API}/auth/me`, { headers }).then(res => {
       if (res.status === 401) {
         router.replace('/login')
       } else if (res.ok) {
