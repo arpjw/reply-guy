@@ -157,18 +157,8 @@ async def twitter_callback(
     await db.commit()
     await db.refresh(user)
 
-    session_token = _make_jwt(user.id)
-
-    response = RedirectResponse("https://replyguy.aryasomu.com")
-    response.set_cookie(
-        _COOKIE_SESSION,
-        session_token,
-        max_age=_SESSION_TTL_DAYS * 86400,
-        httponly=True,
-        samesite="lax",
-        secure=request.url.scheme == "https",
-    )
-    return response
+    jwt_token = _make_jwt(user.id)
+    return RedirectResponse(f"https://replyguy.aryasomu.com?token={jwt_token}")
 
 
 # ---------------------------------------------------------------------------
@@ -177,13 +167,20 @@ async def twitter_callback(
 
 @router.get("/me")
 async def me(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     session: str | None = Cookie(default=None),
 ):
-    if not session:
+    token: str | None = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    elif session:
+        token = session
+    if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        user_id = _decode_jwt(session)
+        user_id = _decode_jwt(token)
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid session")
 

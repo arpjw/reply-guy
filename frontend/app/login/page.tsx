@@ -1,4 +1,6 @@
 'use client'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -10,6 +12,15 @@ const STARBURST_16 = 'polygon(50% 0%,56% 30%,80% 10%,65% 35%,95% 30%,72% 50%,90%
 const STRIPE_BG = 'repeating-linear-gradient(90deg, #FF1493 0px, #FF1493 14px, #9B00FF 14px, #9B00FF 28px, #00FFFF 28px, #00FFFF 42px, #FFD700 42px, #FFD700 56px, #FF69B4 56px, #FF69B4 70px)'
 
 export default function LoginPage() {
+  const router = useRouter()
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token')
+    if (!token) return
+    fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => { if (res.ok) router.replace('/') })
+  }, [router])
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#FFE4F7', display: 'flex', flexDirection: 'column' }}>
       <style>{`

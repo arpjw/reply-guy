@@ -4,6 +4,12 @@ import { useRouter } from 'next/navigation'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
+function authHeader(): Record<string, string> {
+  if (typeof window === 'undefined') return {}
+  const token = localStorage.getItem('auth_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 type AuthUser = { id: number; x_handle: string }
 
 type Post = {
@@ -23,13 +29,13 @@ type Draft = {
 type Card = Post & { draft: Draft }
 
 async function getPosts(): Promise<Post[]> {
-  const res = await fetch(`${API}/posts?min_score=7&page_size=100`)
+  const res = await fetch(`${API}/posts?min_score=7&page_size=100`, { headers: authHeader() })
   if (!res.ok) throw new Error('posts')
   return res.json()
 }
 
 async function getDrafts(): Promise<Draft[]> {
-  const res = await fetch(`${API}/drafts`)
+  const res = await fetch(`${API}/drafts`, { headers: authHeader() })
   if (!res.ok) throw new Error('drafts')
   return res.json()
 }
@@ -381,7 +387,13 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch(`${API}/auth/me`, { credentials: 'include' }).then(res => {
+    const params = new URLSearchParams(window.location.search)
+    const urlToken = params.get('token')
+    if (urlToken) {
+      localStorage.setItem('auth_token', urlToken)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    fetch(`${API}/auth/me`, { headers: authHeader() }).then(res => {
       if (res.status === 401) {
         router.replace('/login')
       } else if (res.ok) {
@@ -396,7 +408,8 @@ export default function Dashboard() {
   }, [router])
 
   async function handleLogout() {
-    await fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' })
+    await fetch(`${API}/auth/logout`, { method: 'POST', headers: authHeader() })
+    localStorage.removeItem('auth_token')
     router.replace('/login')
   }
 
@@ -420,7 +433,7 @@ export default function Dashboard() {
     setScouting(true)
     const countBefore = cards.length
     try {
-      await fetch(`${API}/run-scout`, { method: 'POST' })
+      await fetch(`${API}/run-scout`, { method: 'POST', headers: authHeader() })
     } catch {
       setScouting(false)
       return
@@ -446,18 +459,18 @@ export default function Dashboard() {
     if (action === 'skip') {
       await fetch(`${API}/drafts/${draftId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ status: 'rejected' }),
       })
     } else if (action === 'edit-approve') {
       await fetch(`${API}/drafts/${draftId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ draft_text: text }),
       })
-      await fetch(`${API}/drafts/${draftId}/approve`, { method: 'POST' })
+      await fetch(`${API}/drafts/${draftId}/approve`, { method: 'POST', headers: authHeader() })
     } else {
-      await fetch(`${API}/drafts/${draftId}/approve`, { method: 'POST' })
+      await fetch(`${API}/drafts/${draftId}/approve`, { method: 'POST', headers: authHeader() })
     }
   }
 
