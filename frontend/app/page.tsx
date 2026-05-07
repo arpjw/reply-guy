@@ -387,6 +387,8 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    console.log('PAGE LOAD - search:', window.location.search)
+    console.log('PAGE LOAD - token from URL:', new URLSearchParams(window.location.search).get('token'))
     const params = new URLSearchParams(window.location.search)
     const urlToken = params.get('token')
     if (urlToken) {
