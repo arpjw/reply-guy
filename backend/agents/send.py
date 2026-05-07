@@ -1,145 +1,34 @@
-import asyncio
-import base64
-import os
 import re
-import tempfile
-from playwright.async_api import async_playwright
+import httpx
 
 
-async def _launch_browser(playwright, session_path=None):
-    browser = await playwright.chromium.launch(
-        headless=True,
-        args=["--no-sandbox", "--disable-blink-features=AutomationControlled"]
-    )
-    context_kwargs = {
-        "viewport": {"width": 1280, "height": 900},
-        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    }
-    if session_path:
-        context_kwargs["storage_state"] = session_path
-    context = await browser.new_context(**context_kwargs)
-    await context.add_init_script(
-        "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-    )
-    return browser, context
+def _extract_tweet_id(tweet_url: str) -> str:
+    match = re.search(r'/status/(\d+)', tweet_url)
+    if not match:
+        raise ValueError(f"Could not extract tweet ID from URL: {tweet_url}")
+    return match.group(1)
 
 
-_RATE_LIMIT_PATTERNS = [
-    r"you are over the daily limit",
-    r"rate limit exceeded",
-    r"too many requests",
-    r"you.ve reached your limit",
-    r"try again later",
-    r"posting limit",
-]
-
-_CAPTCHA_PATTERNS = [
-    r"verify you are human",
-    r"arkose",
-    r"funcaptcha",
-    r"please verify",
-]
-
-
-def _check_rate_limited(text: str) -> bool:
-    lower = text.lower()
-    return any(re.search(p, lower) for p in _RATE_LIMIT_PATTERNS)
-
-
-def _check_captcha(url: str, text: str) -> bool:
-    if any(p in url.lower() for p in ("arkose", "funcaptcha", "captcha")):
-        return True
-    lower = text.lower()
-    return any(re.search(p, lower) for p in _CAPTCHA_PATTERNS)
-
-
-async def _login(page, username: str, password: str):
-    await page.goto("https://x.com/login", wait_until="domcontentloaded", timeout=30000)
-    await asyncio.sleep(2)
-    await page.fill('[autocomplete="username"]', username)
-    await page.keyboard.press("Enter")
-    await asyncio.sleep(2)
-    await page.fill('[name="password"]', password)
-    await page.keyboard.press("Enter")
-    await asyncio.sleep(3)
-
-
-async def send_reply(tweet_url: str, reply_text: str) -> dict:
-    session_path = None
-    b64 = os.environ.get("SESSION_JSON_B64")
-    if b64:
-        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
-        tmp.write(base64.b64decode(b64).decode())
-        tmp.close()
-        session_path = tmp.name
-
-    async with async_playwright() as playwright:
-        browser, context = await _launch_browser(playwright, session_path)
-        page = await context.new_page()
-        try:
-            await page.goto(tweet_url, wait_until="domcontentloaded", timeout=30_000)
-            await asyncio.sleep(2)
-
-            if "login" in page.url or "flow" in page.url:
-                print("SEND: redirected to login, attempting credentials", flush=True)
-                await _login(page, os.environ["X_USERNAME"], os.environ["X_PASSWORD"])
-                await page.goto(tweet_url, wait_until="domcontentloaded", timeout=30_000)
-                await asyncio.sleep(2)
-
-            body_text = await page.inner_text("body")
-            if _check_captcha(page.url, body_text):
-                print("SEND FAIL: captcha_detected", flush=True)
-                return {"success": False, "error": "captcha_detected"}
-            if _check_rate_limited(body_text):
-                print("SEND FAIL: rate_limit", flush=True)
-                return {"success": False, "error": "rate_limit"}
-
-            # On a tweet detail page the reply composer is inline; try it first.
-            # If not visible, fall back to clicking the reply icon on the tweet.
-            reply_textarea = page.locator('[data-testid="tweetTextarea_0"]').first
-            textarea_visible = await reply_textarea.is_visible()
-
-            if not textarea_visible:
-                reply_btn = page.locator('[data-testid="reply"]').first
-                await reply_btn.click()
-                await asyncio.sleep(1.5)
-                reply_textarea = page.locator('[data-testid="tweetTextarea_0"]').first
-
-            await reply_textarea.wait_for(state="visible", timeout=10_000)
-            await reply_textarea.click()
-            await asyncio.sleep(0.3)
-            # type() simulates keystrokes, more reliable for contenteditable
-            await reply_textarea.type(reply_text, delay=30)
-            await asyncio.sleep(0.5)
-
-            body_text = await page.inner_text("body")
-            if _check_rate_limited(body_text):
-                print("SEND FAIL: rate_limit", flush=True)
-                return {"success": False, "error": "rate_limit"}
-
-            # Inline reply composer uses tweetButtonInline; modal uses tweetButton
-            post_btn = page.locator('[data-testid="tweetButtonInline"]').first
-            if not await post_btn.is_visible():
-                post_btn = page.locator('[data-testid="tweetButton"]').first
-
-            await post_btn.wait_for(state="visible", timeout=5_000)
-            await post_btn.click()
-            await asyncio.sleep(2)
-
-            body_text = await page.inner_text("body")
-            if _check_captcha(page.url, body_text):
-                print("SEND FAIL: captcha_detected", flush=True)
-                return {"success": False, "error": "captcha_detected"}
-            if _check_rate_limited(body_text):
-                print("SEND FAIL: rate_limit", flush=True)
-                return {"success": False, "error": "rate_limit"}
-
+async def send_reply(tweet_url: str, reply_text: str, access_token: str) -> dict:
+    try:
+        tweet_id = _extract_tweet_id(tweet_url)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://api.twitter.com/2/tweets",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "text": reply_text,
+                    "reply": {"in_reply_to_tweet_id": tweet_id},
+                },
+                timeout=30,
+            )
+        print(f"SEND: X API response {resp.status_code} {resp.text}", flush=True)
+        if resp.status_code in (200, 201):
             return {"success": True, "error": None}
-
-        except Exception as exc:
-            import traceback
-            err = traceback.format_exc()
-            print(f"SEND ERROR: {err}", flush=True)
-            return {"success": False, "error": str(exc)}
-        finally:
-            await browser.close()
+        return {"success": False, "error": f"X API error {resp.status_code}: {resp.text}"}
+    except Exception as exc:
+        print(f"SEND ERROR: {exc}", flush=True)
+        return {"success": False, "error": str(exc)}

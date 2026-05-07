@@ -91,7 +91,7 @@ async def send_draft(
 
     tweet_url = f"https://x.com/{post.author_handle}/status/{post.tweet_id}"
 
-    result = await send_reply(tweet_url, draft.draft_text)
+    result = await send_reply(tweet_url, draft.draft_text, current_user.access_token)
     if not result["success"]:
         raise HTTPException(status_code=422, detail=result["error"])
 
